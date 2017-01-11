@@ -16,7 +16,10 @@ namespace RTSP_Viewer
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Form1());
+            Form1 form = new Form1();
+            form.Size = new System.Drawing.Size(800, 700);
+            Application.Run(form);
+            //Application.Run(new Form1());
         }
     }
 }
