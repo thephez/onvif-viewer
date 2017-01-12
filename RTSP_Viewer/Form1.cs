@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SDS.Utilities.IniFiles;
+using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -14,6 +15,7 @@ namespace RTSP_Viewer
         private const int ViewPadding = 1;
 
         VlcControl[] myVlcControl = new VlcControl[NumberOfViews];
+        IniFile MyIni = new IniFile();
         TextBox uri = new TextBox();
         ComboBox cbxViewSelect = new ComboBox();
 
@@ -52,15 +54,23 @@ namespace RTSP_Viewer
             cbxViewSelect.Location = new Point(stopBtn.Right + 20, stopBtn.Top);
             cbxViewSelect.Anchor = (AnchorStyles.Left | AnchorStyles.Bottom);
             cbxViewSelect.Width = 100;
-            cbxViewSelect.Text = "Select Viewer #";
+            cbxViewSelect.Height = playBtn.Height;
+            //cbxViewSelect.Text = "Select Viewer #";
             for (int i = 0; i < NumberOfViews; i++)
             {
-                cbxViewSelect.Items.Add(i);
+                cbxViewSelect.Items.Add("Viewer " + i);
             }
-            cbxViewSelect.Height = playBtn.Height;
+
             this.Controls.Add(cbxViewSelect);
-            
+            cbxViewSelect.SelectedIndex = 0;
             //viewSelect.Location = new Point()
+
+            Button btnLoadLast = new Button();
+            btnLoadLast.Text = "Load Last";
+            btnLoadLast.Location = new Point(cbxViewSelect.Right + 20, uri.Top - uri.Height - 10);
+            btnLoadLast.Anchor = (AnchorStyles.Left | AnchorStyles.Bottom);
+            btnLoadLast.Click += BtnLoadLast_Click; ;
+            this.Controls.Add(btnLoadLast);
 
             //Debug.Print(myVlcControl.VlcLibDirectory.ToString());
 
@@ -73,6 +83,11 @@ namespace RTSP_Viewer
             //this.Controls.Add(myVlcControl);
 
             this.SizeChanged += Form1_ResizeEnd;
+        }
+
+        private void BtnLoadLast_Click(object sender, EventArgs e)
+        {
+            loadLastStream();
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -91,7 +106,7 @@ namespace RTSP_Viewer
                 ((System.ComponentModel.ISupportInitialize)(myVlcControl[i])).BeginInit();
 
                 myVlcControl[i].VlcLibDirectory = GetVlcLibLocation();
-                //myVlcControl[i].VlcMediaplayerOptions = new string[] { "--video-filter=deinterlace" };
+                myVlcControl[i].VlcMediaplayerOptions = new string[] { ":network-caching=20" };
                 // Standalone player
                 //Vlc.DotNet.Core.VlcMediaPlayer mp = new Vlc.DotNet.Core.VlcMediaPlayer(VlCLibDirectory);
                 //mp.SetMedia(new Uri("http://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_480p_surround-fix.avi"));
@@ -111,6 +126,7 @@ namespace RTSP_Viewer
                 myVlcControl[i].Playing += OnVlcPlaying;
                 myVlcControl[i].EncounteredError += MyVlcControl_EncounteredError;
                 myVlcControl[i].LengthChanged += MyVlcControl_LengthChanged;
+                myVlcControl[i].Buffering += Form1_Buffering;
 
                 // Had to add this line to make work
                 ((System.ComponentModel.ISupportInitialize)(myVlcControl[i])).EndInit();
@@ -176,6 +192,26 @@ namespace RTSP_Viewer
             }
         }
 
+        private void loadLastStream()
+        {
+            for (int i = 0; i < NumberOfViews; i++)
+            {
+                try
+                {
+                    var uri = MyIni.Read("lastURI", "Viewer_" + i);
+                    if (uri != null & uri != "")
+                    {
+                        myVlcControl[i].Play(new Uri(uri), "");
+                    }
+                }
+                catch
+                {
+                    Console.WriteLine("No lastURI entry found for Viewer_" + i);
+                }
+                
+            }
+        }
+
         private void PlayBtn_Click(object sender, EventArgs e)
         {
             int viewerNum = cbxViewSelect.SelectedIndex;
@@ -185,6 +221,9 @@ namespace RTSP_Viewer
                 //myVlcControl.Play(new Uri("http://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_480p_surround-fix.avi"));
                 myVlcControl[viewerNum].Play(new Uri(this.uri.Text), "");
                 Debug.Print(myVlcControl[viewerNum].State.ToString());
+                myVlcControl[viewerNum].UseWaitCursor = true;
+                
+                MyIni.Write("lastURI", this.uri.Text, "Viewer_" + viewerNum);
             }
         }
 
@@ -206,10 +245,13 @@ namespace RTSP_Viewer
         {
             VlcControl vlc = (VlcControl)sender;
             MessageBox.Show(string.Format("Error encountered on '{0}':\n{1}", vlc.Name, e.ToString()), "VLC Control Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            vlc.UseWaitCursor = false;
         }
 
         private void OnVlcPlaying(object sender, Vlc.DotNet.Core.VlcMediaPlayerPlayingEventArgs e)
         {
+            VlcControl vlc = (VlcControl)sender;
+            vlc.UseWaitCursor = false;
             //myLblState.InvokeIfRequired(l => l.Text = "Playing");
 
             //myLblAudioCodec.InvokeIfRequired(l => l.Text = "Codec: ");
@@ -235,17 +277,27 @@ namespace RTSP_Viewer
             //}
         }
 
+        private void Form1_Buffering(object sender, Vlc.DotNet.Core.VlcMediaPlayerBufferingEventArgs e)
+        {
+            VlcControl vlc = (VlcControl)sender;
+            //MessageBox.Show(string.Format("'{0}' buffering:\n{1}", vlc.Name, e.ToString()), "VLC Control Error", MessageBoxButtons.OK, MessageBoxIcon.Info);
+            Console.WriteLine(string.Format("{0}\tBuffering: {1}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), vlc.Name));
+
+        }
+
         private void Form1_KeyDown(object sender, KeyEventArgs e)
         {
             switch (e.KeyCode)
             {
                 case Keys.F11:
-                    if (FormBorderStyle != FormBorderStyle.None)
+                    if (WindowState != FormWindowState.Maximized)
                     {
+                        WindowState = FormWindowState.Maximized;
                         FormBorderStyle = FormBorderStyle.None;
                     }
                     else
                     {
+                        WindowState = FormWindowState.Normal;
                         FormBorderStyle = FormBorderStyle.Sizable;
                     }
                     break;
@@ -258,5 +310,26 @@ namespace RTSP_Viewer
             setSizes();
         }
 
+        /// <summary>
+        /// Read a key value from an Ini file
+        /// </summary>
+        /// <param name="key"></param>
+        /// <returns></returns>
+        private static string getIniValue(string key)
+        {
+            var MyIni = new IniFile();
+            try
+            {
+                var value = MyIni.Read(key);
+                // This guarantees that an Ini file will be created if it doesn't exist
+                MyIni.Write(key, value);
+
+                return value;
+            }
+            catch
+            {
+                throw new Exception(string.Format("Error reading value for ini key [{0}]", key));
+            }
+        }
     }
 }
