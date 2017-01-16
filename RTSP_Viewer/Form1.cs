@@ -3,9 +3,9 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Reflection;
 using System.Windows.Forms;
 using Vlc.DotNet.Forms;
+using RTSP_Viewer.Classes;
 
 namespace RTSP_Viewer
 {
@@ -15,6 +15,7 @@ namespace RTSP_Viewer
         private const int ViewPadding = 1;
 
         VlcControl[] myVlcControl = new VlcControl[NumberOfViews];
+        OpcUaClient tagClient;
         IniFile MyIni = new IniFile();
         TextBox uri = new TextBox();
         ComboBox cbxViewSelect = new ComboBox();
@@ -38,14 +39,14 @@ namespace RTSP_Viewer
             this.Controls.Add(uri);
 
             Button playBtn = new Button();
-            playBtn.Text = "Play";
+            playBtn.Text = "Connect";
             playBtn.Location = new Point(10, uri.Top - uri.Height - 10);
             playBtn.Anchor = (AnchorStyles.Left | AnchorStyles.Bottom);
             playBtn.Click += PlayBtn_Click;
             this.Controls.Add(playBtn);
 
             Button stopBtn = new Button();
-            stopBtn.Text = "Stop";
+            stopBtn.Text = "Disconnect";
             stopBtn.Location = new Point(playBtn.Right + 20, uri.Top - uri.Height - 10);
             stopBtn.Anchor = (AnchorStyles.Left | AnchorStyles.Bottom);
             stopBtn.Click += StopBtn_Click;
@@ -72,17 +73,21 @@ namespace RTSP_Viewer
             btnLoadLast.Click += BtnLoadLast_Click; ;
             this.Controls.Add(btnLoadLast);
 
-            //Debug.Print(myVlcControl.VlcLibDirectory.ToString());
-
             foreach (VlcControl vc in myVlcControl)
             {
                 this.Controls.Add(vc);
             }
 
             this.Padding = new Padding(5);
-            //this.Controls.Add(myVlcControl);
 
             this.SizeChanged += Form1_ResizeEnd;
+
+            tagClient = new OpcUaClient(CameraCallup);
+
+            // OPC server and path to subscribe to
+            string endPointURL = "opc.tcp://admin:admin@127.0.0.1:4840/freeopcua/server/";
+            string tagPath = "/0:Tags";
+            tagClient.Connect(endPointURL, tagPath);
         }
 
         private void BtnLoadLast_Click(object sender, EventArgs e)
@@ -96,6 +101,8 @@ namespace RTSP_Viewer
             {
                 vc.Stop();
             }
+
+            tagClient.Disconnect();
         }
 
         private void SetupVlc()
@@ -114,12 +121,9 @@ namespace RTSP_Viewer
 
                 myVlcControl[i].Location = new Point(0, 0);
                 //myVlcControl[i].Anchor = (AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top | AnchorStyles.Bottom);
-                //myVlcControl[i].Size = new Size(800, 600);
                 myVlcControl[i].Name = string.Format("VLC Viewer {0}", i);
                 myVlcControl[i].Rate = (float)0.0;
                 myVlcControl[i].BackColor = Color.Gray;
-
-                myVlcControl[i].BackColor = SystemColors.ButtonShadow;
                 myVlcControl[i].TabIndex = i;
 
                 // Events
@@ -214,16 +218,26 @@ namespace RTSP_Viewer
 
         private void PlayBtn_Click(object sender, EventArgs e)
         {
-            int viewerNum = cbxViewSelect.SelectedIndex;
-            if (viewerNum >= 0)
+            CameraCallup(this.uri.Text, cbxViewSelect.SelectedIndex);
+        }
+
+        /// <summary>
+        /// Open the provided URI on the provide VLC position
+        /// </summary>
+        /// <param name="URI">URI to open</param>
+        /// <param name="ViewerNum">VLC control to display video on</param>
+        private void CameraCallup(string URI, int ViewerNum)
+        {
+            Console.WriteLine(string.Format("Camera callup for view {0} [{1}]", ViewerNum, URI));
+            if (ViewerNum >= 0)
             {
-                Debug.Print(myVlcControl[viewerNum].State.ToString());
+                Debug.Print(myVlcControl[ViewerNum].State.ToString());
                 //myVlcControl.Play(new Uri("http://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_480p_surround-fix.avi"));
-                myVlcControl[viewerNum].Play(new Uri(this.uri.Text), "");
-                Debug.Print(myVlcControl[viewerNum].State.ToString());
-                myVlcControl[viewerNum].UseWaitCursor = true;
-                
-                MyIni.Write("lastURI", this.uri.Text, "Viewer_" + viewerNum);
+                myVlcControl[ViewerNum].Play(new Uri(URI), "");
+                Debug.Print(myVlcControl[ViewerNum].State.ToString());
+                myVlcControl[ViewerNum].UseWaitCursor = true;
+
+                MyIni.Write("lastURI", this.uri.Text, "Viewer_" + ViewerNum);
             }
         }
 
