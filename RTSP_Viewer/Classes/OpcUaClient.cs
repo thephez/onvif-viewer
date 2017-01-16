@@ -1,7 +1,7 @@
 ﻿using System;
 using Opc.Ua.Client;
 using OPCUA_Integration_Core;
-using Opc.Ua.Configuration;
+using System.Threading;
 
 namespace RTSP_Viewer.Classes
 {
@@ -10,13 +10,34 @@ namespace RTSP_Viewer.Classes
         static UaClient opcuaClient = new UaClient();
         public delegate void SetCameraCallup(string URI, int ViewerNum);
         private SetCameraCallup callupDelegate;
+        private Thread opcThread;
 
         private TagDatabase tagDB = new TagDatabase();
-        private string tagPath;
+        private string EndPointURL;
+        private string TagPath;
+
+        public int SleepTime { get; set; }
 
         public OpcUaClient(SetCameraCallup CallupDelegate)
         {
             this.callupDelegate = CallupDelegate;
+            if (SleepTime < 1)
+                SleepTime = 5000;
+        }
+
+        private void Connect()
+        {
+            // Use 1000 as default publish interval unless overridden by INI file
+            int publishInterval = 250;
+
+            // Instantiate client and set up a connection to server
+            opcuaClient.ClientConnect(EndPointURL);
+
+            // Configure an event handler to process data received back from subscriptions
+            opcuaClient.DataReturned += new EventHandler(dataReturned);
+
+            // Example of subscribing to all objects/variables found in the provided path
+            opcuaClient.SubscribeToTagsInPath(TagPath, publishInterval);
         }
 
         /// <summary>
@@ -28,7 +49,7 @@ namespace RTSP_Viewer.Classes
         public void Connect(string endPointURL, string tagPath)
         {
             // OPC server path to subscribe to (i.e. "/0:Tags")
-            this.tagPath = tagPath;
+            this.TagPath = tagPath;
 
             // Use 1000 as default publish interval unless overridden by INI file
             int publishInterval = 250;
@@ -38,7 +59,7 @@ namespace RTSP_Viewer.Classes
 
             // Configure an event handler to process data received back from subscriptions
             opcuaClient.DataReturned += new EventHandler(dataReturned);
-            
+
             // Example of subscribing to all objects/variables found in the provided path
             opcuaClient.SubscribeToTagsInPath(tagPath, publishInterval);
         }
@@ -47,6 +68,47 @@ namespace RTSP_Viewer.Classes
         {
             // Unsubscribe and disconnect from the server
             opcuaClient.ClientDisconnect();
+        }
+
+        public void StartInterface(string endPointURL, string tagPath)
+        {
+            this.EndPointURL = endPointURL;
+            this.TagPath = tagPath;
+            if (opcThread != null)
+            {
+                if (opcThread.IsAlive)
+                    return;
+            }
+
+            opcThread = new Thread(Connect);
+
+            opcThread.IsBackground = true;
+
+            // Need to also monitor the connection and re-establish if disconnected
+            opcThread.Start();
+            Console.WriteLine("OPC Thread started");
+        }
+
+        // Doesn't work
+        public void MonitorOpc()
+        {
+            while (true)
+            {
+                if (opcuaClient?.Session?.Connected != true)
+                {
+                    try
+                    {
+                        Connect();
+                    }
+                    catch (Exception e)
+                    {
+                        // Connection failed.  Wait and try again
+                        Console.WriteLine(string.Format("Connection failed. Waiting {0}ms. {1}", SleepTime, e.Message));
+                    }
+                    return;
+                }
+                Thread.Sleep(SleepTime);
+            }
         }
 
         private void dataReturned(object sender, EventArgs e)
@@ -63,11 +125,11 @@ namespace RTSP_Viewer.Classes
                     if ((bool)value.Value == true)
                     {
                         // Reset trigger
-                        opcuaClient.WriteValueToPath(string.Format("{0}/{1}", tagPath, monitoredItem.DisplayName), false);
+                        opcuaClient.WriteValueToPath(string.Format("{0}/{1}", TagPath, monitoredItem.DisplayName), false);
 
                         string tagRoot = monitoredItem.DisplayName.Substring(0, monitoredItem.DisplayName.Length - "Trigger".Length);
                         string CameraUriTag = tagRoot + "CameraURI";
-                        
+
                         // If the tag exists and has a valid value, attempt a callup
                         if (tagDB.Tags.Exists(x => x.name == CameraUriTag))
                         {

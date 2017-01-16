@@ -33,7 +33,7 @@ namespace RTSP_Viewer
             SetupVlc();
 
             uri.Text = "rtsp://127.0.0.1:554/rtsp_tunnel?h26x=4&line=1&inst=1";
-            uri.Location = new Point(10, this.Height - 60); // myVlcControl[0].Bottom + 5 + playBtn.Height + 5);
+            uri.Location = new Point(10, this.Height - 60);
             uri.Width = 600;
             uri.Anchor = (AnchorStyles.Left | AnchorStyles.Bottom);
             this.Controls.Add(uri);
@@ -64,7 +64,6 @@ namespace RTSP_Viewer
 
             this.Controls.Add(cbxViewSelect);
             cbxViewSelect.SelectedIndex = 0;
-            //viewSelect.Location = new Point()
 
             Button btnLoadLast = new Button();
             btnLoadLast.Text = "Load Last";
@@ -79,7 +78,6 @@ namespace RTSP_Viewer
             }
 
             this.Padding = new Padding(5);
-
             this.SizeChanged += Form1_ResizeEnd;
 
             tagClient = new OpcUaClient(CameraCallup);
@@ -87,7 +85,8 @@ namespace RTSP_Viewer
             // OPC server and path to subscribe to
             string endPointURL = "opc.tcp://admin:admin@127.0.0.1:4840/freeopcua/server/";
             string tagPath = "/0:Tags";
-            tagClient.Connect(endPointURL, tagPath);
+            //tagClient.Connect(endPointURL, tagPath);
+            tagClient.StartInterface(endPointURL, tagPath);
         }
 
         private void BtnLoadLast_Click(object sender, EventArgs e)
@@ -146,13 +145,9 @@ namespace RTSP_Viewer
         {
             Point[] displayPoint = new Point[NumberOfViews];
             Size[] displaySize = new Size[NumberOfViews];
-            
-            int dim = (int)Math.Round(Math.Sqrt(NumberOfViews));
-            var sz = Screen.FromControl(this).Bounds;
 
             // Set the control sizes to fit the set resolution
-            //int width = Screen.FromControl(this).Bounds.Size.Width / dim;
-            //int height = Screen.FromControl(this).Bounds.Size.Height / dim;
+            int dim = (int)Math.Round(Math.Sqrt(NumberOfViews));
             int width = this.Bounds.Size.Width / dim;
             int height = this.Bounds.Size.Height / dim;
             
@@ -196,6 +191,9 @@ namespace RTSP_Viewer
             }
         }
 
+        /// <summary>
+        /// Loads the last URI displayed on each viewer position
+        /// </summary>
         private void loadLastStream()
         {
             for (int i = 0; i < NumberOfViews; i++)
@@ -212,7 +210,6 @@ namespace RTSP_Viewer
                 {
                     Console.WriteLine("No lastURI entry found for Viewer_" + i);
                 }
-                
             }
         }
 
@@ -237,7 +234,7 @@ namespace RTSP_Viewer
                 Debug.Print(myVlcControl[ViewerNum].State.ToString());
                 myVlcControl[ViewerNum].UseWaitCursor = true;
 
-                MyIni.Write("lastURI", this.uri.Text, "Viewer_" + ViewerNum);
+                MyIni.Write("lastURI", URI, "Viewer_" + ViewerNum);
             }
         }
 
