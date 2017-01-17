@@ -11,10 +11,10 @@ namespace RTSP_Viewer
 {
     public partial class Form1 : Form
     {
-        private const int NumberOfViews = 4;
+        private int NumberOfViews = 4;
         private const int ViewPadding = 1;
 
-        VlcControl[] myVlcControl = new VlcControl[NumberOfViews];
+        VlcControl[] myVlcControl; // = new VlcControl[NumberOfViews];
         OpcUaClient tagClient;
         IniFile MyIni = new IniFile();
         TextBox uri = new TextBox();
@@ -83,8 +83,8 @@ namespace RTSP_Viewer
             tagClient = new OpcUaClient(CameraCallup);
 
             // OPC server and path to subscribe to
-            string endPointURL = "opc.tcp://admin:admin@127.0.0.1:4840/freeopcua/server/";
-            string tagPath = "/0:Tags";
+            string endPointURL = getIniValue("OPC_Endpoint_URL"); //"opc.tcp://admin:admin@127.0.0.1:4840/freeopcua/server/";
+            string tagPath = getIniValue("OPC_Tag_Path"); // " / 0:Tags";
             //tagClient.Connect(endPointURL, tagPath);
             tagClient.StartInterface(endPointURL, tagPath);
         }
@@ -106,6 +106,10 @@ namespace RTSP_Viewer
 
         private void SetupVlc()
         {
+            NumberOfViews = GetNumberOfViews();
+            
+            myVlcControl = new VlcControl[NumberOfViews];
+
             for (int i = 0; i < NumberOfViews; i++)
             {
                 myVlcControl[i] = new VlcControl();
@@ -136,6 +140,24 @@ namespace RTSP_Viewer
             }
 
             setSizes();
+        }
+
+        public int GetNumberOfViews()
+        {
+            int views = 0;
+
+            // Read value from ini if present, otherwise default to 1 view and write to ini
+            if (!Int32.TryParse(getIniValue("NumberOfViews"), out views))
+            {
+                views = 1;
+                MyIni.Write("NumberOfViews", views.ToString());
+            }
+
+            // Force the Number of views to be a power of 2 (1, 2, 4, 16, etc)
+            var sqrtInt = Math.Truncate(Math.Sqrt(Convert.ToDouble(views)));
+            double sqrt = Convert.ToDouble(sqrtInt);
+            views = Convert.ToInt32(Math.Pow(sqrt, Convert.ToDouble(2)));
+            return views;            
         }
 
         /// <summary>
