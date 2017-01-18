@@ -32,12 +32,19 @@ namespace RTSP_Viewer.Classes
 
             // Instantiate client and set up a connection to server
             opcuaClient.ClientConnect(EndPointURL);
+            
+            if (opcuaClient.Session != null)
+            {
+                // Configure an event handler to process data received back from subscriptions
+                opcuaClient.DataReturned += new EventHandler(dataReturned);
 
-            // Configure an event handler to process data received back from subscriptions
-            opcuaClient.DataReturned += new EventHandler(dataReturned);
-
-            // Example of subscribing to all objects/variables found in the provided path
-            opcuaClient.SubscribeToTagsInPath(TagPath, publishInterval);
+                // Example of subscribing to all objects/variables found in the provided path
+                opcuaClient.SubscribeToTagsInPath(TagPath, publishInterval);
+            }
+            else
+            {
+                Console.WriteLine("Not connected. Can't subscribe");
+            }
         }
 
         /// <summary>
@@ -67,7 +74,11 @@ namespace RTSP_Viewer.Classes
         public void Disconnect()
         {
             // Unsubscribe and disconnect from the server
-            opcuaClient.ClientDisconnect();
+            if (opcuaClient?.Session != null)
+            {
+                opcuaClient.ClientDisconnect();
+            }
+            
         }
 
         public void StartInterface(string endPointURL, string tagPath)

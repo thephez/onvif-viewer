@@ -11,10 +11,10 @@ namespace RTSP_Viewer
 {
     public partial class Form1 : Form
     {
-        private int NumberOfViews = 4;
+        private int NumberOfViews;
         private const int ViewPadding = 1;
 
-        VlcControl[] myVlcControl; // = new VlcControl[NumberOfViews];
+        VlcControl[] myVlcControl;
         OpcUaClient tagClient;
         IniFile MyIni = new IniFile();
         TextBox uri = new TextBox();
@@ -56,7 +56,6 @@ namespace RTSP_Viewer
             cbxViewSelect.Anchor = (AnchorStyles.Left | AnchorStyles.Bottom);
             cbxViewSelect.Width = 100;
             cbxViewSelect.Height = playBtn.Height;
-            //cbxViewSelect.Text = "Select Viewer #";
             for (int i = 0; i < NumberOfViews; i++)
             {
                 cbxViewSelect.Items.Add("Viewer " + i);
@@ -80,13 +79,34 @@ namespace RTSP_Viewer
             this.Padding = new Padding(5);
             this.SizeChanged += Form1_ResizeEnd;
 
-            tagClient = new OpcUaClient(CameraCallup);
+            OpcInterfaceInit();
+        }
 
-            // OPC server and path to subscribe to
-            string endPointURL = getIniValue("OPC_Endpoint_URL"); //"opc.tcp://admin:admin@127.0.0.1:4840/freeopcua/server/";
-            string tagPath = getIniValue("OPC_Tag_Path"); // " / 0:Tags";
-            //tagClient.Connect(endPointURL, tagPath);
-            tagClient.StartInterface(endPointURL, tagPath);
+        /// <summary>
+        /// Establish Opc connection (if enabled) in own thread 
+        /// </summary>
+        private void OpcInterfaceInit()
+        {
+            int opcEnable = 0;
+            // Read value from ini if present
+            Int32.TryParse(getIniValue("OPC_Interface_Enable"), out opcEnable);
+
+            if (opcEnable > 0)
+            {
+                // Instantiate OPC client and provide delegate function to handle callups
+                tagClient = new OpcUaClient(CameraCallup);
+
+                // OPC server and path to subscribe to
+                string endPointURL = getIniValue("OPC_Endpoint_URL");
+                string tagPath = getIniValue("OPC_Tag_Path");
+
+                // Establish Opc connection/subscription on own thread
+                tagClient.StartInterface(endPointURL, tagPath);
+            }
+            else
+            {
+                Console.WriteLine("OPC disabled in ini file");
+            }
         }
 
         private void BtnLoadLast_Click(object sender, EventArgs e)
@@ -101,13 +121,14 @@ namespace RTSP_Viewer
                 vc.Stop();
             }
 
-            tagClient.Disconnect();
+            // Call disconnect (if tagClient is not null)
+            tagClient?.Disconnect();
         }
 
         private void SetupVlc()
         {
             NumberOfViews = GetNumberOfViews();
-            
+
             myVlcControl = new VlcControl[NumberOfViews];
 
             for (int i = 0; i < NumberOfViews; i++)
@@ -116,7 +137,7 @@ namespace RTSP_Viewer
                 ((System.ComponentModel.ISupportInitialize)(myVlcControl[i])).BeginInit();
 
                 myVlcControl[i].VlcLibDirectory = GetVlcLibLocation();
-                myVlcControl[i].VlcMediaplayerOptions = new string[] { ":network-caching=20" };
+                myVlcControl[i].VlcMediaplayerOptions = new string[] { ":network-caching=100" };
                 // Standalone player
                 //Vlc.DotNet.Core.VlcMediaPlayer mp = new Vlc.DotNet.Core.VlcMediaPlayer(VlCLibDirectory);
                 //mp.SetMedia(new Uri("http://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_480p_surround-fix.avi"));
@@ -157,7 +178,7 @@ namespace RTSP_Viewer
             var sqrtInt = Math.Truncate(Math.Sqrt(Convert.ToDouble(views)));
             double sqrt = Convert.ToDouble(sqrtInt);
             views = Convert.ToInt32(Math.Pow(sqrt, Convert.ToDouble(2)));
-            return views;            
+            return views;
         }
 
         /// <summary>
@@ -172,7 +193,7 @@ namespace RTSP_Viewer
             int dim = (int)Math.Round(Math.Sqrt(NumberOfViews));
             int width = this.Bounds.Size.Width / dim;
             int height = this.Bounds.Size.Height / dim;
-            
+
             for (int j = 0; j < dim; j++)
             {
                 for (int i = 0; i < dim; i++)
@@ -202,10 +223,12 @@ namespace RTSP_Viewer
             if (vlcLibDirectory.Exists)
             {
                 return vlcLibDirectory;
-            } else if (vlcLibDirectoryX.Exists)
+            }
+            else if (vlcLibDirectoryX.Exists)
             {
                 return vlcLibDirectoryX;
-            } else
+            }
+            else
             {
                 MessageBox.Show(this, "VLC install folder not found.  Libraries cannot be loaded.\nApplication will now close.", "Libraries not found", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Application.Exit();
