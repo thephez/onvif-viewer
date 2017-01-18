@@ -2,11 +2,14 @@
 using Opc.Ua.Client;
 using OPCUA_Integration_Core;
 using System.Threading;
+using log4net;
 
 namespace RTSP_Viewer.Classes
 {
     class OpcUaClient
     {
+        private static readonly ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         static UaClient opcuaClient = new UaClient();
         public delegate void SetCameraCallup(string URI, int ViewerNum);
         private SetCameraCallup callupDelegate;
@@ -32,7 +35,7 @@ namespace RTSP_Viewer.Classes
 
             // Instantiate client and set up a connection to server
             opcuaClient.ClientConnect(EndPointURL);
-            
+
             if (opcuaClient.Session != null)
             {
                 // Configure an event handler to process data received back from subscriptions
@@ -43,7 +46,7 @@ namespace RTSP_Viewer.Classes
             }
             else
             {
-                Console.WriteLine("Not connected. Can't subscribe");
+                log.Error("OPC connection failure. Can't subscribe to tags.");
             }
         }
 
@@ -78,7 +81,6 @@ namespace RTSP_Viewer.Classes
             {
                 opcuaClient.ClientDisconnect();
             }
-            
         }
 
         public void StartInterface(string endPointURL, string tagPath)
@@ -97,7 +99,7 @@ namespace RTSP_Viewer.Classes
 
             // Need to also monitor the connection and re-establish if disconnected
             opcThread.Start();
-            Console.WriteLine("OPC Thread started");
+            log.Info("OPC Thread started");
         }
 
         // Doesn't work
@@ -127,8 +129,8 @@ namespace RTSP_Viewer.Classes
             MonitoredItem monitoredItem = (MonitoredItem)sender;
             foreach (var value in monitoredItem.DequeueValues())
             {
-                string message = string.Format("\n{0}\t{1}\t{2}\t{3}\n", monitoredItem.DisplayName, value.Value, value.SourceTimestamp.ToString("yyyy-MM-dd HH:mm:ss.fff"), value.StatusCode);
-                Console.WriteLine(message);
+                string message = string.Format("{0}={1}\t[Source Time: {2}, Status: {3}]", monitoredItem.DisplayName, value.Value, value.SourceTimestamp.ToString("yyyy-MM-dd HH:mm:ss.fff"), value.StatusCode);
+                log.Debug(message);
                 tagDB.UpdateTagValue(monitoredItem.DisplayName, value.Value.ToString());
 
                 if (monitoredItem.DisplayName.EndsWith("Trigger")) // == "Camera01Trigger")
@@ -154,7 +156,7 @@ namespace RTSP_Viewer.Classes
                         else
                         {
                             // Tag not yet assigned
-                            Console.WriteLine(string.Format("Tag not found [{0}].  Callup cannot be performed.", CameraUriTag));
+                            log.Warn(string.Format("Tag not found [{0}].  Callup cannot be performed.", CameraUriTag));
                         }
                     }
                 }

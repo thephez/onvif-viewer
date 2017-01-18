@@ -6,11 +6,14 @@ using System.IO;
 using System.Windows.Forms;
 using Vlc.DotNet.Forms;
 using RTSP_Viewer.Classes;
+using log4net;
 
 namespace RTSP_Viewer
 {
     public partial class Form1 : Form
     {
+        private static readonly ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         private int NumberOfViews;
         private const int ViewPadding = 1;
 
@@ -22,6 +25,8 @@ namespace RTSP_Viewer
 
         public Form1()
         {
+            log4net.Config.XmlConfigurator.Configure(new System.IO.FileInfo("logger.xml"));
+            log.Info("Application Form loading");
             InitializeComponent();
             this.KeyPreview = true;
             this.FormClosing += Form1_FormClosing;
@@ -58,7 +63,7 @@ namespace RTSP_Viewer
             cbxViewSelect.Height = playBtn.Height;
             for (int i = 0; i < NumberOfViews; i++)
             {
-                cbxViewSelect.Items.Add("Viewer " + i);
+                cbxViewSelect.Items.Add(string.Format("Viewer {0}", i + 1));
             }
 
             this.Controls.Add(cbxViewSelect);
@@ -101,11 +106,12 @@ namespace RTSP_Viewer
                 string tagPath = getIniValue("OPC_Tag_Path");
 
                 // Establish Opc connection/subscription on own thread
+                log.Info("Initializing OPC connection");
                 tagClient.StartInterface(endPointURL, tagPath);
             }
             else
             {
-                Console.WriteLine("OPC disabled in ini file");
+                log.Info("OPC disabled in ini file");
             }
         }
 
@@ -231,6 +237,7 @@ namespace RTSP_Viewer
             else
             {
                 MessageBox.Show(this, "VLC install folder not found.  Libraries cannot be loaded.\nApplication will now close.", "Libraries not found", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                log.Fatal("VLC install folder not found.  Libraries cannot be loaded.\nApplication will now close.");
                 Application.Exit();
                 throw new DirectoryNotFoundException("VLC install folder not found.  Libraries cannot be loaded.");
             }
@@ -253,7 +260,7 @@ namespace RTSP_Viewer
                 }
                 catch
                 {
-                    Console.WriteLine("No lastURI entry found for Viewer_" + i);
+                    log.Debug("No lastURI entry found for Viewer_" + i);
                 }
             }
         }
@@ -270,7 +277,7 @@ namespace RTSP_Viewer
         /// <param name="ViewerNum">VLC control to display video on</param>
         private void CameraCallup(string URI, int ViewerNum)
         {
-            Console.WriteLine(string.Format("Camera callup for view {0} [{1}]", ViewerNum, URI));
+            log.Debug(string.Format("Camera callup for view {0} [{1}]", ViewerNum, URI));
             if (ViewerNum >= 0)
             {
                 Debug.Print(myVlcControl[ViewerNum].State.ToString());
@@ -294,7 +301,8 @@ namespace RTSP_Viewer
 
         private void MyVlcControl_LengthChanged(object sender, Vlc.DotNet.Core.VlcMediaPlayerLengthChangedEventArgs e)
         {
-            Console.WriteLine("Length changed");
+            VlcControl vlc = (VlcControl)sender;
+            log.Debug(string.Format("{0} media length changed to {1}", vlc.Name, vlc.Length));
         }
 
         private void MyVlcControl_EncounteredError(object sender, Vlc.DotNet.Core.VlcMediaPlayerEncounteredErrorEventArgs e)
