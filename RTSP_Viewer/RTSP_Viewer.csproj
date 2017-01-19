@@ -86,12 +86,6 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Callup.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Callup.Designer.cs">
-      <DependentUpon>Callup.cs</DependentUpon>
-    </Compile>
     <Compile Include="Classes\IniFile.cs" />
     <Compile Include="Classes\OpcUaClient.cs" />
     <Compile Include="Classes\TagDatabase.cs" />
@@ -103,9 +97,6 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <EmbeddedResource Include="Callup.resx">
-      <DependentUpon>Callup.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="Form1.resx">
       <DependentUpon>Form1.cs</DependentUpon>
     </EmbeddedResource>

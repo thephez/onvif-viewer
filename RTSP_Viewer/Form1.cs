@@ -18,6 +18,7 @@ namespace RTSP_Viewer
         private const int ViewPadding = 1;
 
         VlcControl[] myVlcControl;
+        Panel[] vlcOverlay;
         OpcUaClient tagClient;
         IniFile MyIni = new IniFile();
         TextBox uri = new TextBox();
@@ -134,23 +135,25 @@ namespace RTSP_Viewer
         private void SetupVlc()
         {
             NumberOfViews = GetNumberOfViews();
-
             myVlcControl = new VlcControl[NumberOfViews];
+            vlcOverlay = new Panel[NumberOfViews];
 
             for (int i = 0; i < NumberOfViews; i++)
             {
                 myVlcControl[i] = new VlcControl();
+                vlcOverlay[i] = new Panel { Name = "VLC Overlay " + i, BackColor = Color.Transparent, Parent = myVlcControl[i], Dock = DockStyle.Fill };
+                vlcOverlay[i].MouseDoubleClick += VlcOverlay_MouseDoubleClick;
+
                 ((System.ComponentModel.ISupportInitialize)(myVlcControl[i])).BeginInit();
 
                 myVlcControl[i].VlcLibDirectory = GetVlcLibLocation();
-                myVlcControl[i].VlcMediaplayerOptions = new string[] { ":network-caching=100" };
+                myVlcControl[i].VlcMediaplayerOptions = new string[] { "--network-caching=1000", "--video-filter=deinterlace" };
                 // Standalone player
                 //Vlc.DotNet.Core.VlcMediaPlayer mp = new Vlc.DotNet.Core.VlcMediaPlayer(VlCLibDirectory);
                 //mp.SetMedia(new Uri("http://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_480p_surround-fix.avi"));
                 //mp.Play();
 
                 myVlcControl[i].Location = new Point(0, 0);
-                //myVlcControl[i].Anchor = (AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top | AnchorStyles.Bottom);
                 myVlcControl[i].Name = string.Format("VLC Viewer {0}", i);
                 myVlcControl[i].Rate = (float)0.0;
                 myVlcControl[i].BackColor = Color.Gray;
@@ -162,11 +165,29 @@ namespace RTSP_Viewer
                 myVlcControl[i].LengthChanged += MyVlcControl_LengthChanged;
                 myVlcControl[i].Buffering += Form1_Buffering;
 
+                myVlcControl[i].Controls.Add(vlcOverlay[i]);
                 // Had to add this line to make work
                 ((System.ComponentModel.ISupportInitialize)(myVlcControl[i])).EndInit();
             }
 
             setSizes();
+        }
+
+        private void VlcOverlay_MouseDoubleClick(object sender, EventArgs e)
+        {
+            Panel overlay = (Panel)sender;
+            VlcControl vlc = (VlcControl)overlay.Parent;
+            if (vlc.Width >= this.Bounds.Size.Width)
+            {
+                setSizes();
+            }
+            else
+            {
+                vlc.Width = this.Width;
+                vlc.Height = this.Height;
+                vlc.Location = new Point(0, 0);
+                vlc.BringToFront();
+            }
         }
 
         public int GetNumberOfViews()
