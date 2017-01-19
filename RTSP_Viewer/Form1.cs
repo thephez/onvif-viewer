@@ -44,6 +44,73 @@ namespace RTSP_Viewer
             OpcInterfaceInit();
         }
 
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            foreach (VlcControl vc in myVlcControl)
+            {
+                vc.Stop();
+            }
+
+            // Call disconnect (if tagClient is not null)
+            tagClient?.Disconnect();
+        }
+
+        private void InitializeForm()
+        {
+            // Remove all controls and recreate
+            this.Controls.Clear();
+
+            SetupVlc();
+            InitDebugControls();
+
+            foreach (VlcControl vc in myVlcControl)
+            {
+                this.Controls.Add(vc);
+            }
+        }
+
+        private void SetupVlc()
+        {
+            NumberOfViews = GetNumberOfViews();
+            myVlcControl = new VlcControl[NumberOfViews];
+            vlcOverlay = new Panel[NumberOfViews];
+
+            for (int i = 0; i < NumberOfViews; i++)
+            {
+                myVlcControl[i] = new VlcControl();
+                vlcOverlay[i] = new Panel { Name = "VLC Overlay " + i, BackColor = Color.Transparent, Parent = myVlcControl[i], Dock = DockStyle.Fill, TabIndex = i };
+                vlcOverlay[i].MouseDoubleClick += VlcOverlay_MouseDoubleClick;
+                vlcOverlay[i].MouseClick += VlcOverlay_MouseClick;
+
+                ((System.ComponentModel.ISupportInitialize)(myVlcControl[i])).BeginInit();
+
+                myVlcControl[i].VlcLibDirectory = GetVlcLibLocation();
+                myVlcControl[i].VlcMediaplayerOptions = new string[] { "--network-caching=1000", "--video-filter=deinterlace" };
+                // Standalone player
+                //Vlc.DotNet.Core.VlcMediaPlayer mp = new Vlc.DotNet.Core.VlcMediaPlayer(VlCLibDirectory);
+                //mp.SetMedia(new Uri("http://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_480p_surround-fix.avi"));
+                //mp.Play();
+
+                myVlcControl[i].Location = new Point(0, 0);
+                myVlcControl[i].Name = string.Format("VLC Viewer {0}", i);
+                myVlcControl[i].Rate = (float)0.0;
+                myVlcControl[i].BackColor = Color.Gray;
+                myVlcControl[i].TabIndex = i;
+
+                // Events
+                myVlcControl[i].Playing += OnVlcPlaying;
+                myVlcControl[i].EncounteredError += MyVlcControl_EncounteredError;
+                myVlcControl[i].LengthChanged += MyVlcControl_LengthChanged;
+                myVlcControl[i].Buffering += Form1_Buffering;
+
+                myVlcControl[i].Controls.Add(vlcOverlay[i]);
+                // Had to add this line to make work
+                ((System.ComponentModel.ISupportInitialize)(myVlcControl[i])).EndInit();
+            }
+
+            setSizes();
+        }
+
         private void InitDebugControls()
         {
             uri.Text = "rtsp://127.0.0.1:554/rtsp_tunnel?h26x=4&line=1&inst=1";
@@ -118,93 +185,6 @@ namespace RTSP_Viewer
             else
             {
                 log.Info("OPC disabled in ini file");
-            }
-        }
-
-        private void BtnLoadLast_Click(object sender, EventArgs e)
-        {
-            loadLastStream();
-        }
-
-        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
-        {
-            foreach (VlcControl vc in myVlcControl)
-            {
-                vc.Stop();
-            }
-
-            // Call disconnect (if tagClient is not null)
-            tagClient?.Disconnect();
-        }
-
-        private void SetupVlc()
-        {
-            NumberOfViews = GetNumberOfViews();
-            myVlcControl = new VlcControl[NumberOfViews];
-            vlcOverlay = new Panel[NumberOfViews];
-
-            for (int i = 0; i < NumberOfViews; i++)
-            {
-                myVlcControl[i] = new VlcControl();
-                vlcOverlay[i] = new Panel { Name = "VLC Overlay " + i, BackColor = Color.Transparent, Parent = myVlcControl[i], Dock = DockStyle.Fill, TabIndex = i };
-                vlcOverlay[i].MouseDoubleClick += VlcOverlay_MouseDoubleClick;
-                vlcOverlay[i].MouseClick += VlcOverlay_MouseClick;
-
-                ((System.ComponentModel.ISupportInitialize)(myVlcControl[i])).BeginInit();
-
-                myVlcControl[i].VlcLibDirectory = GetVlcLibLocation();
-                myVlcControl[i].VlcMediaplayerOptions = new string[] { "--network-caching=1000", "--video-filter=deinterlace" };
-                // Standalone player
-                //Vlc.DotNet.Core.VlcMediaPlayer mp = new Vlc.DotNet.Core.VlcMediaPlayer(VlCLibDirectory);
-                //mp.SetMedia(new Uri("http://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_480p_surround-fix.avi"));
-                //mp.Play();
-
-                myVlcControl[i].Location = new Point(0, 0);
-                myVlcControl[i].Name = string.Format("VLC Viewer {0}", i);
-                myVlcControl[i].Rate = (float)0.0;
-                myVlcControl[i].BackColor = Color.Gray;
-                myVlcControl[i].TabIndex = i;
-
-                // Events
-                myVlcControl[i].Playing += OnVlcPlaying;
-                myVlcControl[i].EncounteredError += MyVlcControl_EncounteredError;
-                myVlcControl[i].LengthChanged += MyVlcControl_LengthChanged;
-                myVlcControl[i].Buffering += Form1_Buffering;
-
-                myVlcControl[i].Controls.Add(vlcOverlay[i]);
-                // Had to add this line to make work
-                ((System.ComponentModel.ISupportInitialize)(myVlcControl[i])).EndInit();
-            }
-
-            setSizes();
-        }
-
-        private void VlcOverlay_MouseClick(object sender, MouseEventArgs e)
-        {
-            // Update combobox with selected view
-            Panel pan = (Panel)sender;
-            cbxViewSelect.SelectedIndex = pan.TabIndex;
-
-            if (e.Button == MouseButtons.Right)
-            {
-                TogglePause(pan.TabIndex);
-            }
-        }
-
-        private void VlcOverlay_MouseDoubleClick(object sender, EventArgs e)
-        {
-            Panel overlay = (Panel)sender;
-            VlcControl vlc = (VlcControl)overlay.Parent;
-            if (vlc.Width >= this.Bounds.Size.Width)
-            {
-                setSizes();
-            }
-            else
-            {
-                vlc.Width = this.Width;
-                vlc.Height = this.Height;
-                vlc.Location = new Point(0, 0);
-                vlc.BringToFront();
             }
         }
 
@@ -321,11 +301,6 @@ namespace RTSP_Viewer
             }
         }
 
-        private void PlayBtn_Click(object sender, EventArgs e)
-        {
-            CameraCallup(this.uri.Text, cbxViewSelect.SelectedIndex);
-        }
-
         /// <summary>
         /// Open the provided URI on the provide VLC position
         /// </summary>
@@ -346,6 +321,16 @@ namespace RTSP_Viewer
             }
         }
 
+        private void PlayBtn_Click(object sender, EventArgs e)
+        {
+            CameraCallup(this.uri.Text, cbxViewSelect.SelectedIndex);
+        }
+
+        private void BtnLoadLast_Click(object sender, EventArgs e)
+        {
+            loadLastStream();
+        }
+
         private void PauseBtn_Click(object sender, EventArgs e)
         {
             int viewerNum = cbxViewSelect.SelectedIndex;
@@ -358,6 +343,35 @@ namespace RTSP_Viewer
             if (viewerNum >= 0)
             {
                 myVlcControl[viewerNum].Stop();
+            }
+        }
+
+        private void VlcOverlay_MouseClick(object sender, MouseEventArgs e)
+        {
+            // Update combobox with selected view
+            Panel pan = (Panel)sender;
+            cbxViewSelect.SelectedIndex = pan.TabIndex;
+
+            if (e.Button == MouseButtons.Right)
+            {
+                TogglePause(pan.TabIndex);
+            }
+        }
+
+        private void VlcOverlay_MouseDoubleClick(object sender, EventArgs e)
+        {
+            Panel overlay = (Panel)sender;
+            VlcControl vlc = (VlcControl)overlay.Parent;
+            if (vlc.Width >= this.Bounds.Size.Width)
+            {
+                setSizes();
+            }
+            else
+            {
+                vlc.Width = this.Width;
+                vlc.Height = this.Height;
+                vlc.Location = new Point(0, 0);
+                vlc.BringToFront();
             }
         }
 
@@ -438,20 +452,6 @@ namespace RTSP_Viewer
         {
             // Adjust size and position of VLC controls to match new form size
             setSizes();
-        }
-
-        private void InitializeForm()
-        {
-            this.Controls.Clear();
-
-            SetupVlc();
-            InitDebugControls();
-
-            foreach (VlcControl vc in myVlcControl)
-            {
-                this.Controls.Add(vc);
-            }
-
         }
 
         /// <summary>
