@@ -32,12 +32,29 @@ namespace RTSP_Viewer
             this.KeyPreview = true;
             this.FormClosing += Form1_FormClosing;
             this.KeyDown += Form1_KeyDown;
+
+            SetupVlc();
+            InitDebugControls();
         }
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            SetupVlc();
+            //SetupVlc();
 
+
+            foreach (VlcControl vc in myVlcControl)
+            {
+                this.Controls.Add(vc);
+            }
+
+            this.Padding = new Padding(5);
+            this.SizeChanged += Form1_ResizeEnd;
+
+            OpcInterfaceInit();
+        }
+
+        private void InitDebugControls()
+        {
             uri.Text = "rtsp://127.0.0.1:554/rtsp_tunnel?h26x=4&line=1&inst=1";
             uri.Location = new Point(10, this.Height - 60);
             uri.Width = 600;
@@ -67,25 +84,15 @@ namespace RTSP_Viewer
                 cbxViewSelect.Items.Add(string.Format("Viewer {0}", i + 1));
             }
 
-            this.Controls.Add(cbxViewSelect);
             cbxViewSelect.SelectedIndex = 0;
-
+            this.Controls.Add(cbxViewSelect);
+            
             Button btnLoadLast = new Button();
             btnLoadLast.Text = "Load Last";
             btnLoadLast.Location = new Point(cbxViewSelect.Right + 20, uri.Top - uri.Height - 10);
             btnLoadLast.Anchor = (AnchorStyles.Left | AnchorStyles.Bottom);
             btnLoadLast.Click += BtnLoadLast_Click; ;
             this.Controls.Add(btnLoadLast);
-
-            foreach (VlcControl vc in myVlcControl)
-            {
-                this.Controls.Add(vc);
-            }
-
-            this.Padding = new Padding(5);
-            this.SizeChanged += Form1_ResizeEnd;
-
-            OpcInterfaceInit();
         }
 
         /// <summary>
@@ -346,20 +353,20 @@ namespace RTSP_Viewer
             //myLblVideoHeight.InvokeIfRequired(l => l.Text = "Height: ");
             //myLblVideoWidth.InvokeIfRequired(l => l.Text = "Width: ");
 
-            //var mediaInformations = myVlcControl.GetCurrentMedia().TracksInformations;
-            //foreach (var mediaInformation in mediaInformations)
-            //{
-            //    if (mediaInformation.Type == Vlc.DotNet.Core.Interops.Signatures.MediaTrackTypes.Audio)
-            //    {
-            //        Console.WriteLine(string.Format("Audio info - Codec: {0}, Channels: {1}, Rate: {2}", mediaInformation.CodecName, mediaInformation.Audio.Channels, mediaInformation.Audio.Rate));
-            //        //myLblAudioCodec.InvokeIfRequired(l => l.Text += mediaInformation.CodecName);
-            //    }
-            //    else if (mediaInformation.Type == Vlc.DotNet.Core.Interops.Signatures.MediaTrackTypes.Video)
-            //    {
-            //        Console.WriteLine(string.Format("Video info - Codec: {0}, Height: {1}, Width: {2}", mediaInformation.CodecName, mediaInformation.Video.Height, mediaInformation.Video.Width));
-            //        //        //myLblVideoCodec.InvokeIfRequired(l => l.Text += mediaInformation.CodecName);
-            //    }
-            //}
+            var mediaInformations = vlc.GetCurrentMedia().TracksInformations;
+            foreach (var mediaInformation in mediaInformations)
+            {
+                if (mediaInformation.Type == Vlc.DotNet.Core.Interops.Signatures.MediaTrackTypes.Audio)
+                {
+                    log.Debug(string.Format("{0} Audio info - Codec: {1}, Channels: {2}, Rate: {3}", vlc.Name, mediaInformation.CodecName, mediaInformation.Audio.Channels, mediaInformation.Audio.Rate));
+                    //        //myLblAudioCodec.InvokeIfRequired(l => l.Text += mediaInformation.CodecName);
+                }
+                else if (mediaInformation.Type == Vlc.DotNet.Core.Interops.Signatures.MediaTrackTypes.Video)
+                {
+                    log.Debug(string.Format("{0} Video info - Codec: {1}, Height: {2}, Width: {3}", vlc.Name, mediaInformation.CodecName, mediaInformation.Video.Height, mediaInformation.Video.Width));
+                    //        //        //myLblVideoCodec.InvokeIfRequired(l => l.Text += mediaInformation.CodecName);
+                }
+            }
         }
 
         private void Form1_Buffering(object sender, Vlc.DotNet.Core.VlcMediaPlayerBufferingEventArgs e)
