@@ -10,7 +10,7 @@ using log4net;
 
 namespace RTSP_Viewer
 {
-    public partial class Form1 : Form
+    public partial class Viewer : Form
     {
         private static readonly ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -24,7 +24,7 @@ namespace RTSP_Viewer
         TextBox uri = new TextBox();
         ComboBox cbxViewSelect = new ComboBox();
 
-        public Form1()
+        public Viewer()
         {
             log4net.Config.XmlConfigurator.Configure(new System.IO.FileInfo("logger.xml"));
             log.Info("Application Form loading");

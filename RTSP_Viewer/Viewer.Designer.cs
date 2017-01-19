@@ -1,6 +1,6 @@
 ﻿namespace RTSP_Viewer
 {
-    partial class Form1
+    partial class Viewer
     {
         /// <summary>
         /// Required designer variable.
