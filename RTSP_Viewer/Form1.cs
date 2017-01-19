@@ -33,20 +33,11 @@ namespace RTSP_Viewer
             this.FormClosing += Form1_FormClosing;
             this.KeyDown += Form1_KeyDown;
 
-            SetupVlc();
-            InitDebugControls();
+            InitializeForm();
         }
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            //SetupVlc();
-
-
-            foreach (VlcControl vc in myVlcControl)
-            {
-                this.Controls.Add(vc);
-            }
-
             this.Padding = new Padding(5);
             this.SizeChanged += Form1_ResizeEnd;
 
@@ -68,9 +59,16 @@ namespace RTSP_Viewer
             playBtn.Click += PlayBtn_Click;
             this.Controls.Add(playBtn);
 
+            Button pauseBtn = new Button();
+            pauseBtn.Text = "Pause";
+            pauseBtn.Location = new Point(playBtn.Right + 20, uri.Top - uri.Height - 10);
+            pauseBtn.Anchor = (AnchorStyles.Left | AnchorStyles.Bottom);
+            pauseBtn.Click += PauseBtn_Click;
+            this.Controls.Add(pauseBtn);
+
             Button stopBtn = new Button();
             stopBtn.Text = "Disconnect";
-            stopBtn.Location = new Point(playBtn.Right + 20, uri.Top - uri.Height - 10);
+            stopBtn.Location = new Point(pauseBtn.Right + 20, uri.Top - uri.Height - 10);
             stopBtn.Anchor = (AnchorStyles.Left | AnchorStyles.Bottom);
             stopBtn.Click += StopBtn_Click;
             this.Controls.Add(stopBtn);
@@ -148,8 +146,9 @@ namespace RTSP_Viewer
             for (int i = 0; i < NumberOfViews; i++)
             {
                 myVlcControl[i] = new VlcControl();
-                vlcOverlay[i] = new Panel { Name = "VLC Overlay " + i, BackColor = Color.Transparent, Parent = myVlcControl[i], Dock = DockStyle.Fill };
+                vlcOverlay[i] = new Panel { Name = "VLC Overlay " + i, BackColor = Color.Transparent, Parent = myVlcControl[i], Dock = DockStyle.Fill, TabIndex = i };
                 vlcOverlay[i].MouseDoubleClick += VlcOverlay_MouseDoubleClick;
+                vlcOverlay[i].MouseClick += VlcOverlay_MouseClick;
 
                 ((System.ComponentModel.ISupportInitialize)(myVlcControl[i])).BeginInit();
 
@@ -178,6 +177,18 @@ namespace RTSP_Viewer
             }
 
             setSizes();
+        }
+
+        private void VlcOverlay_MouseClick(object sender, MouseEventArgs e)
+        {
+            // Update combobox with selected view
+            Panel pan = (Panel)sender;
+            cbxViewSelect.SelectedIndex = pan.TabIndex;
+
+            if (e.Button == MouseButtons.Right)
+            {
+                TogglePause(pan.TabIndex);
+            }
         }
 
         private void VlcOverlay_MouseDoubleClick(object sender, EventArgs e)
@@ -293,6 +304,23 @@ namespace RTSP_Viewer
             }
         }
 
+        private void TogglePause(int viewerNum)
+        {
+            if (viewerNum >= 0)
+            {
+                if (myVlcControl[viewerNum].State == Vlc.DotNet.Core.Interops.Signatures.MediaStates.Paused)
+                {
+                    myVlcControl[viewerNum].Play();
+                    log.Debug(string.Format("{0} resume playing", myVlcControl[viewerNum].Name));
+                }
+                else if (myVlcControl[viewerNum].State == Vlc.DotNet.Core.Interops.Signatures.MediaStates.Playing)
+                {
+                    myVlcControl[viewerNum].Pause();
+                    log.Debug(string.Format("{0} pause", myVlcControl[viewerNum].Name));
+                }
+            }
+        }
+
         private void PlayBtn_Click(object sender, EventArgs e)
         {
             CameraCallup(this.uri.Text, cbxViewSelect.SelectedIndex);
@@ -318,6 +346,12 @@ namespace RTSP_Viewer
             }
         }
 
+        private void PauseBtn_Click(object sender, EventArgs e)
+        {
+            int viewerNum = cbxViewSelect.SelectedIndex;
+            TogglePause(viewerNum);
+        }
+        
         private void StopBtn_Click(object sender, EventArgs e)
         {
             int viewerNum = cbxViewSelect.SelectedIndex;
@@ -381,6 +415,10 @@ namespace RTSP_Viewer
         {
             switch (e.KeyCode)
             {
+                case Keys.F5:
+                    InitializeForm();
+                    break;
+
                 case Keys.F11:
                     if (WindowState != FormWindowState.Maximized)
                     {
@@ -400,6 +438,20 @@ namespace RTSP_Viewer
         {
             // Adjust size and position of VLC controls to match new form size
             setSizes();
+        }
+
+        private void InitializeForm()
+        {
+            this.Controls.Clear();
+
+            SetupVlc();
+            InitDebugControls();
+
+            foreach (VlcControl vc in myVlcControl)
+            {
+                this.Controls.Add(vc);
+            }
+
         }
 
         /// <summary>
