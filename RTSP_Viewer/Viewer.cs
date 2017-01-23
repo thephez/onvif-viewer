@@ -459,15 +459,18 @@ namespace RTSP_Viewer
         /// </summary>
         /// <param name="key"></param>
         /// <returns></returns>
-        private static string getIniValue(string key)
+        private string getIniValue(string key)
         {
-            var MyIni = new IniFile();
             try
             {
                 var value = MyIni.Read(key);
-                // This guarantees that an Ini file will be created if it doesn't exist
-                MyIni.Write(key, value);
 
+                if (!MyIni.KeyExists(key))
+                {
+                    // This guarantees that an Ini file will be created if it doesn't exist
+                    MyIni.Write(key, value);
+                }
+                
                 return value;
             }
             catch
