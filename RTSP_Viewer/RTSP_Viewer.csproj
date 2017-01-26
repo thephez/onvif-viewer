@@ -93,6 +93,14 @@
     <Compile Include="Classes\IniFile.cs" />
     <Compile Include="Classes\OpcUaClient.cs" />
     <Compile Include="Classes\TagDatabase.cs" />
+    <Compile Include="Classes\Utilities.cs" />
+    <Compile Include="Classes\VlcViewer.cs" />
+    <Compile Include="Overlay.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Overlay.Designer.cs">
+      <DependentUpon>Overlay.cs</DependentUpon>
+    </Compile>
     <Compile Include="Viewer.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -101,6 +109,9 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <EmbeddedResource Include="Overlay.resx">
+      <DependentUpon>Overlay.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Viewer.resx">
       <DependentUpon>Viewer.cs</DependentUpon>
     </EmbeddedResource>

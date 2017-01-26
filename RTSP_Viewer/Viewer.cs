@@ -19,8 +19,10 @@ namespace RTSP_Viewer
 
         VlcControl[] myVlcControl;
         Panel[] vlcOverlay;
+        Panel statusBg = new Panel();
+
         OpcUaClient tagClient;
-        IniFile MyIni = new IniFile();
+        IniFile MyIni;
         TextBox uri = new TextBox();
         ComboBox cbxViewSelect = new ComboBox();
 
@@ -42,14 +44,14 @@ namespace RTSP_Viewer
             this.SizeChanged += Form1_ResizeEnd;
 
             OpcInterfaceInit();
+            // This handles the size change that occurs after the Vlc controls initialize on startup
+            setSizes();
+            InitViewerStatus();
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
-            foreach (VlcControl vc in myVlcControl)
-            {
-                vc.Stop();
-            }
+            VlcViewer.DisconnectAll(myVlcControl);
 
             // Call disconnect (if tagClient is not null)
             tagClient?.Disconnect();
@@ -60,7 +62,10 @@ namespace RTSP_Viewer
             // Remove all controls and recreate
             this.Controls.Clear();
 
+            MyIni = new IniFile();
+
             SetupVlc();
+            InitViewerStatus();
             InitDebugControls();
 
             foreach (VlcControl vc in myVlcControl)
@@ -84,7 +89,7 @@ namespace RTSP_Viewer
 
                 ((System.ComponentModel.ISupportInitialize)(myVlcControl[i])).BeginInit();
 
-                myVlcControl[i].VlcLibDirectory = GetVlcLibLocation();
+                myVlcControl[i].VlcLibDirectory = VlcViewer.GetVlcLibLocation();
                 myVlcControl[i].VlcMediaplayerOptions = new string[] { "--network-caching=1000", "--video-filter=deinterlace" };
                 // Standalone player
                 //Vlc.DotNet.Core.VlcMediaPlayer mp = new Vlc.DotNet.Core.VlcMediaPlayer(VlCLibDirectory);
@@ -151,7 +156,7 @@ namespace RTSP_Viewer
 
             cbxViewSelect.SelectedIndex = 0;
             this.Controls.Add(cbxViewSelect);
-            
+
             Button btnLoadLast = new Button();
             btnLoadLast.Text = "Load Last";
             btnLoadLast.Location = new Point(cbxViewSelect.Right + 20, uri.Top - uri.Height - 10);
@@ -212,108 +217,19 @@ namespace RTSP_Viewer
         public void setSizes()
         {
             this.SuspendLayout();
-            Point[] displayPoint = new Point[NumberOfViews];
-            Size[] displaySize = new Size[NumberOfViews];
 
-            // Set the control sizes to fit the set resolution
-            int dim = (int)Math.Round(Math.Sqrt(NumberOfViews));
-            int width = this.Bounds.Size.Width / dim;
-            int height = this.Bounds.Size.Height / dim;
-
-            for (int j = 0; j < dim; j++)
-            {
-                for (int i = 0; i < dim; i++)
-                {
-                    displayPoint[dim * j + i] = new Point(width * i, height * j);
-                    displaySize[dim * j + i] = new Size(width - ViewPadding, height - ViewPadding);
-                }
-            }
+            Point[] displayPoint = Utilities.CalculatePointLocations(NumberOfViews, this.ClientSize.Width, this.ClientSize.Height);
+            Size displaySize = Utilities.CalculateItemSizes(NumberOfViews, this.ClientSize.Width, this.ClientSize.Height, ViewPadding);
 
             for (int i = 0; i < NumberOfViews; i++)
             {
                 myVlcControl[i].Location = displayPoint[i];
-                myVlcControl[i].Size = displaySize[i];
+                myVlcControl[i].Size = displaySize;
             }
+
             this.ResumeLayout();
         }
 
-        /// <summary>
-        /// Get the VLC install location (to reference the required DLLs and plugin folder)
-        /// </summary>
-        /// <returns>VLC install directory</returns>
-        private DirectoryInfo GetVlcLibLocation()
-        {
-            DirectoryInfo vlcLibDirectory = null;
-            DirectoryInfo vlcLibDirectoryX = null;
-
-            PlatformID platform = Environment.OSVersion.Platform;
-            if (platform == PlatformID.Win32NT || platform == PlatformID.Win32S || platform == PlatformID.Win32Windows)
-            {
-                log.Debug(string.Format("Windows platform [{0}] detected", platform));
-                // Check both potential normal install locations
-                vlcLibDirectory = new DirectoryInfo("C:\\Program Files\\VideoLAN\\VLC");
-                vlcLibDirectoryX = new DirectoryInfo("C:\\Program Files (x86)\\VideoLAN\\VLC");
-            } else if (platform == PlatformID.Unix) {
-                log.Debug(string.Format("Unix platform [{0}] detected", platform));
-                vlcLibDirectory = new DirectoryInfo("/usr/lib/vlc");
-            }
-
-            if (vlcLibDirectory.Exists)
-            {
-                return vlcLibDirectory;
-            }
-            else if (vlcLibDirectoryX.Exists)
-            {
-                return vlcLibDirectoryX;
-            }
-            else
-            {
-                MessageBox.Show(this, "VLC install folder not found.  Libraries cannot be loaded.\nApplication will now close.", "Libraries not found", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                log.Fatal("VLC install folder not found.  Libraries cannot be loaded.\nApplication will now close.");
-                //Application.Exit();
-                throw new DirectoryNotFoundException("VLC install folder not found.  Libraries cannot be loaded.");
-            }
-        }
-
-        /// <summary>
-        /// Loads the last URI displayed on each viewer position
-        /// </summary>
-        private void loadLastStream()
-        {
-            for (int i = 0; i < NumberOfViews; i++)
-            {
-                try
-                {
-                    var uri = MyIni.Read("lastURI", "Viewer_" + i);
-                    if (uri != null & uri != "")
-                    {
-                        myVlcControl[i].Play(new Uri(uri), "");
-                        myVlcControl[i].BackColor = Color.Black;
-                    }
-                }
-                catch
-                {
-                    log.Debug("No lastURI entry found for Viewer_" + i);
-                }
-            }
-        }
-
-        private void TogglePause(int viewerNum)
-        {
-            if (viewerNum >= 0)
-            {
-                if (myVlcControl[viewerNum].State == Vlc.DotNet.Core.Interops.Signatures.MediaStates.Paused)
-                {
-                    myVlcControl[viewerNum].Play();
-                    log.Debug(string.Format("{0} resume playing", myVlcControl[viewerNum].Name));
-                }
-                else if (myVlcControl[viewerNum].State == Vlc.DotNet.Core.Interops.Signatures.MediaStates.Playing)
-                {
-                    myVlcControl[viewerNum].Pause();
-                    log.Debug(string.Format("{0} pause", myVlcControl[viewerNum].Name));
-                }
-            }
-        }
 
         /// <summary>
         /// Open the provided URI on the provide VLC position
@@ -343,15 +259,15 @@ namespace RTSP_Viewer
 
         private void BtnLoadLast_Click(object sender, EventArgs e)
         {
-            loadLastStream();
+            VlcViewer.loadLastStream(myVlcControl, MyIni);
         }
 
         private void PauseBtn_Click(object sender, EventArgs e)
         {
             int viewerNum = cbxViewSelect.SelectedIndex;
-            TogglePause(viewerNum);
+            VlcViewer.TogglePause(myVlcControl[viewerNum]);
         }
-        
+
         private void StopBtn_Click(object sender, EventArgs e)
         {
             int viewerNum = cbxViewSelect.SelectedIndex;
@@ -367,10 +283,11 @@ namespace RTSP_Viewer
             // Update combobox with selected view
             Panel pan = (Panel)sender;
             cbxViewSelect.SelectedIndex = pan.TabIndex;
+            SetViewerStatus(pan.TabIndex);
 
             if (e.Button == MouseButtons.Right)
             {
-                TogglePause(pan.TabIndex);
+                VlcViewer.TogglePause(myVlcControl[pan.TabIndex]);
             }
         }
 
@@ -379,19 +296,33 @@ namespace RTSP_Viewer
             Panel overlay = (Panel)sender;
             VlcControl vlc = (VlcControl)overlay.Parent;
             this.SuspendLayout();
-            if (vlc.Width >= this.Bounds.Size.Width)
+            if (vlc.Width >= this.ClientSize.Width)
             {
                 setSizes();
                 vlc.SendToBack();
             }
             else
             {
-                vlc.Width = this.Width;
-                vlc.Height = this.Height;
-                vlc.Location = new Point(0, 0);
-                vlc.BringToFront();
+                VlcViewer.SetVlcFullView(this, vlc);
+                statusBg.Visible = true;
+                statusBg.BringToFront();
             }
             this.ResumeLayout();
+        }
+
+        private void SetVlcFullView(int viewerIndex)
+        {
+            foreach (VlcControl vlc in myVlcControl)
+            {
+                if (vlc.TabIndex == viewerIndex)
+                {
+                    VlcViewer.SetVlcFullView(this, vlc);
+                    statusBg.Visible = true;
+                    statusBg.BringToFront();
+                    SetViewerStatus(viewerIndex);
+                    break;
+                }
+            }
         }
 
         private void MyVlcControl_LengthChanged(object sender, Vlc.DotNet.Core.VlcMediaPlayerLengthChangedEventArgs e)
@@ -439,9 +370,7 @@ namespace RTSP_Viewer
         private void Form1_Buffering(object sender, Vlc.DotNet.Core.VlcMediaPlayerBufferingEventArgs e)
         {
             VlcControl vlc = (VlcControl)sender;
-            //MessageBox.Show(string.Format("'{0}' buffering:\n{1}", vlc.Name, e.ToString()), "VLC Control Error", MessageBoxButtons.OK, MessageBoxIcon.Info);
             Console.WriteLine(string.Format("{0}\tBuffering: {1}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), vlc.Name));
-
         }
 
         private void Form1_KeyDown(object sender, KeyEventArgs e)
@@ -449,7 +378,10 @@ namespace RTSP_Viewer
             switch (e.KeyCode)
             {
                 case Keys.F5:
+                    Cursor.Current = Cursors.WaitCursor;
+                    VlcViewer.DisconnectAll(myVlcControl);
                     InitializeForm();
+                    Cursor.Current = Cursors.Default;
                     break;
 
                 case Keys.F11:
@@ -489,12 +421,83 @@ namespace RTSP_Viewer
                     // This guarantees that an Ini file will be created if it doesn't exist
                     MyIni.Write(key, value);
                 }
-                
+
                 return value;
             }
             catch
             {
                 throw new Exception(string.Format("Error reading value for ini key [{0}]", key));
+            }
+        }
+
+        private void InitViewerStatus()
+        {
+            // Only need this if showing more than 1 viewer
+            if (NumberOfViews > 1)
+            {
+                statusBg.Controls.Clear();
+                statusBg.BackColor = Color.Black;
+                statusBg.Size = new Size(60, 37);
+                statusBg.Location = new Point(this.ClientSize.Width - statusBg.Width - 10, this.ClientSize.Height - statusBg.Height - 10);
+                statusBg.Anchor = (AnchorStyles.Bottom | AnchorStyles.Right);
+
+                Panel[] viewer = new Panel[NumberOfViews];
+
+                Point[] displayPoint = Utilities.CalculatePointLocations(NumberOfViews, statusBg.Width, statusBg.Height);
+                Size displaySize = Utilities.CalculateItemSizes(NumberOfViews, statusBg.Size.Width, statusBg.Size.Height, ViewPadding);
+
+                for (int i = 0; i < NumberOfViews; i++)
+                {
+                    viewer[i] = new Panel();
+                    viewer[i].Location = displayPoint[i];
+                    viewer[i].Size = displaySize;
+                    viewer[i].BackColor = Color.Gainsboro;
+                    viewer[i].Name = string.Format("Viewer Status {0}", i);
+                    viewer[i].TabIndex = i;
+                    viewer[i].MouseClick += ViewerStatus_MouseClick;
+                    statusBg.Controls.Add(viewer[i]);
+                }
+
+                statusBg.Visible = true;
+                this.Controls.Add(statusBg);
+                statusBg.BringToFront();
+            }
+            else
+            {
+                statusBg.Visible = false;
+            }
+        }
+
+        private void SetViewerStatus(int activeView)
+        {
+            foreach (Control c in statusBg.Controls)
+            {
+                if (c.Name == string.Format("Viewer Status {0}", activeView))
+                    c.BackColor = Color.Yellow;
+                else
+                    c.BackColor = Color.Gainsboro;
+            }
+        }
+
+        private void ViewerStatus_MouseClick(object sender, MouseEventArgs e)
+        {
+            Panel view = (Panel)sender;
+
+            // Switch to this view if in full screen view
+            foreach (VlcControl vc in myVlcControl)
+            {
+                if (vc.Width >= this.ClientSize.Width)
+                {
+                    if (view.TabIndex != vc.TabIndex)
+                    {
+                        // Switch which Vlc control is full screen
+                        // The one associated with "view"
+                        setSizes(); //Temporary hack
+                        vc.SendToBack();
+                        SetVlcFullView(view.TabIndex);
+                    }
+                    break;
+                }
             }
         }
     }
