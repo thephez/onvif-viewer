@@ -211,6 +211,7 @@ namespace RTSP_Viewer
         /// </summary>
         public void setSizes()
         {
+            this.SuspendLayout();
             Point[] displayPoint = new Point[NumberOfViews];
             Size[] displaySize = new Size[NumberOfViews];
 
@@ -233,6 +234,7 @@ namespace RTSP_Viewer
                 myVlcControl[i].Location = displayPoint[i];
                 myVlcControl[i].Size = displaySize[i];
             }
+            this.ResumeLayout();
         }
 
         /// <summary>
@@ -241,9 +243,20 @@ namespace RTSP_Viewer
         /// <returns>VLC install directory</returns>
         private DirectoryInfo GetVlcLibLocation()
         {
-            // Check both potential normal install locations
-            DirectoryInfo vlcLibDirectory = new DirectoryInfo("C:\\Program Files\\VideoLAN\\VLC");
-            DirectoryInfo vlcLibDirectoryX = new DirectoryInfo("C:\\Program Files (x86)\\VideoLAN\\VLC");
+            DirectoryInfo vlcLibDirectory = null;
+            DirectoryInfo vlcLibDirectoryX = null;
+
+            PlatformID platform = Environment.OSVersion.Platform;
+            if (platform == PlatformID.Win32NT || platform == PlatformID.Win32S || platform == PlatformID.Win32Windows)
+            {
+                log.Debug(string.Format("Windows platform [{0}] detected", platform));
+                // Check both potential normal install locations
+                vlcLibDirectory = new DirectoryInfo("C:\\Program Files\\VideoLAN\\VLC");
+                vlcLibDirectoryX = new DirectoryInfo("C:\\Program Files (x86)\\VideoLAN\\VLC");
+            } else if (platform == PlatformID.Unix) {
+                log.Debug(string.Format("Unix platform [{0}] detected", platform));
+                vlcLibDirectory = new DirectoryInfo("/usr/lib/vlc");
+            }
 
             if (vlcLibDirectory.Exists)
             {
@@ -257,7 +270,7 @@ namespace RTSP_Viewer
             {
                 MessageBox.Show(this, "VLC install folder not found.  Libraries cannot be loaded.\nApplication will now close.", "Libraries not found", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 log.Fatal("VLC install folder not found.  Libraries cannot be loaded.\nApplication will now close.");
-                Application.Exit();
+                //Application.Exit();
                 throw new DirectoryNotFoundException("VLC install folder not found.  Libraries cannot be loaded.");
             }
         }
@@ -275,6 +288,7 @@ namespace RTSP_Viewer
                     if (uri != null & uri != "")
                     {
                         myVlcControl[i].Play(new Uri(uri), "");
+                        myVlcControl[i].BackColor = Color.Black;
                     }
                 }
                 catch
@@ -314,6 +328,7 @@ namespace RTSP_Viewer
                 Debug.Print(myVlcControl[ViewerNum].State.ToString());
                 //myVlcControl.Play(new Uri("http://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_480p_surround-fix.avi"));
                 myVlcControl[ViewerNum].Play(new Uri(URI), "");
+                myVlcControl[ViewerNum].BackColor = Color.Black;
                 Debug.Print(myVlcControl[ViewerNum].State.ToString());
                 myVlcControl[ViewerNum].UseWaitCursor = true;
 
@@ -343,6 +358,7 @@ namespace RTSP_Viewer
             if (viewerNum >= 0)
             {
                 myVlcControl[viewerNum].Stop();
+                myVlcControl[viewerNum].BackColor = Color.Gray;
             }
         }
 
@@ -362,9 +378,11 @@ namespace RTSP_Viewer
         {
             Panel overlay = (Panel)sender;
             VlcControl vlc = (VlcControl)overlay.Parent;
+            this.SuspendLayout();
             if (vlc.Width >= this.Bounds.Size.Width)
             {
                 setSizes();
+                vlc.SendToBack();
             }
             else
             {
@@ -373,6 +391,7 @@ namespace RTSP_Viewer
                 vlc.Location = new Point(0, 0);
                 vlc.BringToFront();
             }
+            this.ResumeLayout();
         }
 
         private void MyVlcControl_LengthChanged(object sender, Vlc.DotNet.Core.VlcMediaPlayerLengthChangedEventArgs e)

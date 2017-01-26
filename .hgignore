@@ -3,3 +3,4 @@ obj/*
 bin/*
 *.suo
 *.user
+RTSP_Viewer.userprefs
