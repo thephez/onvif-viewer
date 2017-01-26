@@ -54,7 +54,5 @@ namespace RTSP_Viewer.Classes
 
             return new Size(width - padding, height - padding);
         }
-
-
     }
 }

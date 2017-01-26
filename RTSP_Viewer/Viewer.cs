@@ -2,8 +2,8 @@
 using System;
 using System.Diagnostics;
 using System.Drawing;
-using System.IO;
 using System.Windows.Forms;
+
 using Vlc.DotNet.Forms;
 using RTSP_Viewer.Classes;
 using log4net;
@@ -23,7 +23,7 @@ namespace RTSP_Viewer
 
         OpcUaClient tagClient;
         IniFile MyIni;
-        TextBox uri = new TextBox();
+        TextBox txtUri = new TextBox();
         ComboBox cbxViewSelect = new ComboBox();
 
         public Viewer()
@@ -51,10 +51,12 @@ namespace RTSP_Viewer
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
+            Cursor.Current = Cursors.WaitCursor;
             VlcViewer.DisconnectAll(myVlcControl);
 
             // Call disconnect (if tagClient is not null)
             tagClient?.Disconnect();
+            Cursor.Current = Cursors.Default;
         }
 
         private void InitializeForm()
@@ -89,7 +91,7 @@ namespace RTSP_Viewer
 
                 ((System.ComponentModel.ISupportInitialize)(myVlcControl[i])).BeginInit();
 
-                myVlcControl[i].VlcLibDirectory = VlcViewer.GetVlcLibLocation();
+                myVlcControl[i].VlcLibDirectory = VlcViewer.GetVlcLibLocation();  // Tried to call once outside loop, but it causes in exception on program close
                 myVlcControl[i].VlcMediaplayerOptions = new string[] { "--network-caching=1000", "--video-filter=deinterlace" };
                 // Standalone player
                 //Vlc.DotNet.Core.VlcMediaPlayer mp = new Vlc.DotNet.Core.VlcMediaPlayer(VlCLibDirectory);
@@ -118,29 +120,29 @@ namespace RTSP_Viewer
 
         private void InitDebugControls()
         {
-            uri.Text = "rtsp://127.0.0.1:554/rtsp_tunnel?h26x=4&line=1&inst=1";
-            uri.Location = new Point(10, this.Height - 60);
-            uri.Width = 600;
-            uri.Anchor = (AnchorStyles.Left | AnchorStyles.Bottom);
-            this.Controls.Add(uri);
+            txtUri.Text = "rtsp://127.0.0.1:554/rtsp_tunnel?h26x=4&line=1&inst=1";
+            txtUri.Location = new Point(10, this.Height - 60);
+            txtUri.Width = 600;
+            txtUri.Anchor = (AnchorStyles.Left | AnchorStyles.Bottom);
+            this.Controls.Add(txtUri);
 
             Button playBtn = new Button();
             playBtn.Text = "Connect";
-            playBtn.Location = new Point(10, uri.Top - uri.Height - 10);
+            playBtn.Location = new Point(10, txtUri.Top - txtUri.Height - 10);
             playBtn.Anchor = (AnchorStyles.Left | AnchorStyles.Bottom);
             playBtn.Click += PlayBtn_Click;
             this.Controls.Add(playBtn);
-
+            
             Button pauseBtn = new Button();
             pauseBtn.Text = "Pause";
-            pauseBtn.Location = new Point(playBtn.Right + 20, uri.Top - uri.Height - 10);
+            pauseBtn.Location = new Point(playBtn.Right + 20, txtUri.Top - txtUri.Height - 10);
             pauseBtn.Anchor = (AnchorStyles.Left | AnchorStyles.Bottom);
             pauseBtn.Click += PauseBtn_Click;
             this.Controls.Add(pauseBtn);
 
             Button stopBtn = new Button();
             stopBtn.Text = "Disconnect";
-            stopBtn.Location = new Point(pauseBtn.Right + 20, uri.Top - uri.Height - 10);
+            stopBtn.Location = new Point(pauseBtn.Right + 20, txtUri.Top - txtUri.Height - 10);
             stopBtn.Anchor = (AnchorStyles.Left | AnchorStyles.Bottom);
             stopBtn.Click += StopBtn_Click;
             this.Controls.Add(stopBtn);
@@ -153,13 +155,12 @@ namespace RTSP_Viewer
             {
                 cbxViewSelect.Items.Add(string.Format("Viewer {0}", i + 1));
             }
-
             cbxViewSelect.SelectedIndex = 0;
             this.Controls.Add(cbxViewSelect);
 
             Button btnLoadLast = new Button();
             btnLoadLast.Text = "Load Last";
-            btnLoadLast.Location = new Point(cbxViewSelect.Right + 20, uri.Top - uri.Height - 10);
+            btnLoadLast.Location = new Point(cbxViewSelect.Right + 20, txtUri.Top - txtUri.Height - 10);
             btnLoadLast.Anchor = (AnchorStyles.Left | AnchorStyles.Bottom);
             btnLoadLast.Click += BtnLoadLast_Click; ;
             this.Controls.Add(btnLoadLast);
@@ -230,7 +231,6 @@ namespace RTSP_Viewer
             this.ResumeLayout();
         }
 
-
         /// <summary>
         /// Open the provided URI on the provide VLC position
         /// </summary>
@@ -254,7 +254,7 @@ namespace RTSP_Viewer
 
         private void PlayBtn_Click(object sender, EventArgs e)
         {
-            CameraCallup(this.uri.Text, cbxViewSelect.SelectedIndex);
+            CameraCallup(this.txtUri.Text, cbxViewSelect.SelectedIndex);
         }
 
         private void BtnLoadLast_Click(object sender, EventArgs e)
@@ -284,6 +284,7 @@ namespace RTSP_Viewer
             Panel pan = (Panel)sender;
             cbxViewSelect.SelectedIndex = pan.TabIndex;
             SetViewerStatus(pan.TabIndex);
+            txtUri.Text = MyIni.Read("lastURI", "Viewer_" + pan.TabIndex);
 
             if (e.Button == MouseButtons.Right)
             {
@@ -375,7 +376,7 @@ namespace RTSP_Viewer
 
         private void Form1_KeyDown(object sender, KeyEventArgs e)
         {
-            switch (e.KeyCode)
+            switch (e.KeyData)
             {
                 case Keys.F5:
                     Cursor.Current = Cursors.WaitCursor;
@@ -482,7 +483,7 @@ namespace RTSP_Viewer
         private void ViewerStatus_MouseClick(object sender, MouseEventArgs e)
         {
             Panel view = (Panel)sender;
-
+            
             // Switch to this view if in full screen view
             foreach (VlcControl vc in myVlcControl)
             {
@@ -491,7 +492,6 @@ namespace RTSP_Viewer
                     if (view.TabIndex != vc.TabIndex)
                     {
                         // Switch which Vlc control is full screen
-                        // The one associated with "view"
                         setSizes(); //Temporary hack
                         vc.SendToBack();
                         SetVlcFullView(view.TabIndex);
