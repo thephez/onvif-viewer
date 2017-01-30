@@ -23,8 +23,8 @@ namespace RTSP_Viewer
 
         OpcUaClient tagClient;
         IniFile MyIni;
-        TextBox txtUri = new TextBox();
-        ComboBox cbxViewSelect = new ComboBox();
+        TextBox txtUri = new TextBox() { Tag = "Debug", Visible = false };
+        ComboBox cbxViewSelect = new ComboBox() { Tag = "Debug", Visible = false };
 
         public Viewer()
         {
@@ -126,21 +126,21 @@ namespace RTSP_Viewer
             txtUri.Anchor = (AnchorStyles.Left | AnchorStyles.Bottom);
             this.Controls.Add(txtUri);
 
-            Button playBtn = new Button();
+            Button playBtn = new Button() { Tag = "Debug", Visible = false };
             playBtn.Text = "Connect";
             playBtn.Location = new Point(10, txtUri.Top - txtUri.Height - 10);
             playBtn.Anchor = (AnchorStyles.Left | AnchorStyles.Bottom);
             playBtn.Click += PlayBtn_Click;
             this.Controls.Add(playBtn);
             
-            Button pauseBtn = new Button();
+            Button pauseBtn = new Button() { Tag = "Debug", Visible = false };
             pauseBtn.Text = "Pause";
             pauseBtn.Location = new Point(playBtn.Right + 20, txtUri.Top - txtUri.Height - 10);
             pauseBtn.Anchor = (AnchorStyles.Left | AnchorStyles.Bottom);
             pauseBtn.Click += PauseBtn_Click;
             this.Controls.Add(pauseBtn);
 
-            Button stopBtn = new Button();
+            Button stopBtn = new Button() { Tag = "Debug", Visible = false };
             stopBtn.Text = "Disconnect";
             stopBtn.Location = new Point(pauseBtn.Right + 20, txtUri.Top - txtUri.Height - 10);
             stopBtn.Anchor = (AnchorStyles.Left | AnchorStyles.Bottom);
@@ -158,7 +158,7 @@ namespace RTSP_Viewer
             cbxViewSelect.SelectedIndex = 0;
             this.Controls.Add(cbxViewSelect);
 
-            Button btnLoadLast = new Button();
+            Button btnLoadLast = new Button() { Tag = "Debug", Visible = false };
             btnLoadLast.Text = "Load Last";
             btnLoadLast.Location = new Point(cbxViewSelect.Right + 20, txtUri.Top - txtUri.Height - 10);
             btnLoadLast.Anchor = (AnchorStyles.Left | AnchorStyles.Bottom);
@@ -395,6 +395,17 @@ namespace RTSP_Viewer
                     {
                         WindowState = FormWindowState.Normal;
                         FormBorderStyle = FormBorderStyle.Sizable;
+                    }
+                    break;
+
+                case Keys.Control | Keys.D:
+                    foreach (Control c in this.Controls)
+                    {
+                        if (c.Tag?.ToString() == "Debug")
+                        {
+                            c.Visible = !c.Visible;
+                            c.BringToFront();
+                        }
                     }
                     break;
             }
