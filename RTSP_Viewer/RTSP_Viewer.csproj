@@ -65,8 +65,10 @@
     </Reference>
     <Reference Include="OPCUA_Integration_Core_full">
       <HintPath>.\OPCUA_Integration_Core_full.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing.Design" />
     <Reference Include="System.Xml.Linq" />
@@ -103,6 +105,7 @@
     <Compile Include="Overlay.Designer.cs">
       <DependentUpon>Overlay.cs</DependentUpon>
     </Compile>
+    <Compile Include="Settings.cs" />
     <Compile Include="Viewer.cs">
       <SubType>Form</SubType>
     </Compile>
