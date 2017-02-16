@@ -1,0 +1,68 @@
+
+
+rtsp://onvif:Sierra123@172.16.5.11/onvif-media/media.amp?profile=profile_1_h264&sessiontimeout=60&streamtype=unicast
+
+rtsp://172.16.5.12:554/rtsp_tunnel?h26x=4&line=1&inst=1
+
+rtsp://172.16.5.14/onvif/profile2/media.smp
+
+rtsp://172.16.5.13/stream1
+
+<protocol>
+<user>
+<password>
+<ip/host>
+<port>
+<uri_root>
+<parameters>
+
+
+Templates
+
+Axis:
+	<protocol>://<user>:<password>@<ip>:<port>/<uri_root>?parameter1&parameter2&parameter3
+	
+	Default uri_root: onvif-media/media.amp
+	
+	parameter1: profile=<profile_name>
+		Default: profile_1_h264
+	parameter2: sessiontimeout=<timeoute>
+		Default: 60
+	parameter3: streamtype=<stream_type>
+		Default: unicast
+
+Bosch:
+	Minimal RTSP (uses stream 1):
+		<protocol>://<ip>
+		
+	With Parameters:
+		<protocol>://<user>:<password>@<ip>:<port>/<uri_root>?parameter1&parameter2&parameter3
+	
+	Default uri_root: None required, Optional: /rtsp_tunnel (this forces TCP tunnelling)
+	
+	parameter1: h26x=<stream_type>
+		Default: 4 (H.264)
+			0 = JPEG
+			3 = MPEG-4 SH++
+	parameter2: line=<device_num>
+		Default: 1
+	parameter3: inst=<stream_num>
+		Default: 1
+	
+		multicast=1
+		
+		
+		enableaudio=1
+		audio_line=<line_num>
+	
+	
+Pelco:
+	<protocol>://<ip>:<port>/<uri_root>
+	
+	Default uri_root: /stream1
+
+	
+Samsung:
+	<protocol>://<user>:<password>@<ip>:<port>/<uri_root>
+	
+	Default uri_root: /onvif/profile2/media.smp

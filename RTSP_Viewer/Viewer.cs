@@ -6,6 +6,7 @@ using System.Windows.Forms;
 
 using Vlc.DotNet.Forms;
 using RTSP_Viewer.Classes;
+using SDS.Video;
 using log4net;
 
 namespace RTSP_Viewer
@@ -74,6 +75,8 @@ namespace RTSP_Viewer
             {
                 this.Controls.Add(vc);
             }
+
+            //Camera.GenerateHashTable();
         }
 
         private void SetupVlc()

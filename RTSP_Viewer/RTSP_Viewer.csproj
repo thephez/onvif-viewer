@@ -94,6 +94,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Classes\Camera.cs" />
     <Compile Include="Classes\IniFile.cs" />
     <Compile Include="Classes\OpcUaClient.cs" />
     <Compile Include="Classes\TagDatabase.cs" />

@@ -11,7 +11,7 @@ using System.Windows.Forms;
 using System.Drawing;
 using SDS.Utilities.IniFiles;
 
-namespace RTSP_Viewer.Classes
+namespace SDS.Video
 {
     class VlcViewer
     {
