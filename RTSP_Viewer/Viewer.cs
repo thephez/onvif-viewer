@@ -81,6 +81,7 @@ namespace RTSP_Viewer
             NumberOfViews = GetNumberOfViews();
             myVlcControl = new VlcControl[NumberOfViews];
             vlcOverlay = new Panel[NumberOfViews];
+            string[] vlcMediaOptions = getIniValue("VlcOptions").Split(',');
 
             for (int i = 0; i < NumberOfViews; i++)
             {
@@ -92,7 +93,7 @@ namespace RTSP_Viewer
                 ((System.ComponentModel.ISupportInitialize)(myVlcControl[i])).BeginInit();
 
                 myVlcControl[i].VlcLibDirectory = VlcViewer.GetVlcLibLocation();  // Tried to call once outside loop, but it causes in exception on program close
-                myVlcControl[i].VlcMediaplayerOptions = new string[] { "--network-caching=1000", "--video-filter=deinterlace" };
+                myVlcControl[i].VlcMediaplayerOptions = vlcMediaOptions; // new string[] { "--network-caching=150", "--video-filter=deinterlace" };
                 // Standalone player
                 //Vlc.DotNet.Core.VlcMediaPlayer mp = new Vlc.DotNet.Core.VlcMediaPlayer(VlCLibDirectory);
                 //mp.SetMedia(new Uri("http://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_480p_surround-fix.avi"));
@@ -132,7 +133,7 @@ namespace RTSP_Viewer
             playBtn.Anchor = (AnchorStyles.Left | AnchorStyles.Bottom);
             playBtn.Click += PlayBtn_Click;
             this.Controls.Add(playBtn);
-            
+
             Button pauseBtn = new Button() { Tag = "Debug", Visible = false };
             pauseBtn.Text = "Pause";
             pauseBtn.Location = new Point(playBtn.Right + 20, txtUri.Top - txtUri.Height - 10);
@@ -217,10 +218,10 @@ namespace RTSP_Viewer
         /// </summary>
         public void setSizes()
         {
-            this.SuspendLayout();
+            SuspendLayout();
 
-            Point[] displayPoint = Utilities.CalculatePointLocations(NumberOfViews, this.ClientSize.Width, this.ClientSize.Height);
-            Size displaySize = Utilities.CalculateItemSizes(NumberOfViews, this.ClientSize.Width, this.ClientSize.Height, ViewPadding);
+            Point[] displayPoint = Utilities.CalculatePointLocations(NumberOfViews, ClientSize.Width, ClientSize.Height);
+            Size displaySize = Utilities.CalculateItemSizes(NumberOfViews, ClientSize.Width, ClientSize.Height, ViewPadding);
 
             for (int i = 0; i < NumberOfViews; i++)
             {
@@ -228,7 +229,7 @@ namespace RTSP_Viewer
                 myVlcControl[i].Size = displaySize;
             }
 
-            this.ResumeLayout();
+            ResumeLayout();
         }
 
         /// <summary>
@@ -242,12 +243,12 @@ namespace RTSP_Viewer
             if (ViewerNum >= 0)
             {
                 Debug.Print(myVlcControl[ViewerNum].State.ToString());
-                //myVlcControl.Play(new Uri("http://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_480p_surround-fix.avi"));
                 myVlcControl[ViewerNum].Play(new Uri(URI), "");
                 myVlcControl[ViewerNum].BackColor = Color.Black;
                 Debug.Print(myVlcControl[ViewerNum].State.ToString());
                 myVlcControl[ViewerNum].UseWaitCursor = true;
 
+                // Store the URI in the ini file
                 MyIni.Write("lastURI", URI, "Viewer_" + ViewerNum);
             }
         }
@@ -343,14 +344,6 @@ namespace RTSP_Viewer
         {
             VlcControl vlc = (VlcControl)sender;
             vlc.UseWaitCursor = false;
-            //myLblState.InvokeIfRequired(l => l.Text = "Playing");
-
-            //myLblAudioCodec.InvokeIfRequired(l => l.Text = "Codec: ");
-            //myLblAudioChannels.InvokeIfRequired(l => l.Text = "Channels: ");
-            //myLblAudioRate.InvokeIfRequired(l => l.Text = "Rate: ");
-            //myLblVideoCodec.InvokeIfRequired(l => l.Text = "Codec: ");
-            //myLblVideoHeight.InvokeIfRequired(l => l.Text = "Height: ");
-            //myLblVideoWidth.InvokeIfRequired(l => l.Text = "Width: ");
 
             var mediaInformations = vlc.GetCurrentMedia().TracksInformations;
             foreach (var mediaInformation in mediaInformations)
@@ -388,8 +381,9 @@ namespace RTSP_Viewer
                 case Keys.F11:
                     if (WindowState != FormWindowState.Maximized)
                     {
-                        WindowState = FormWindowState.Maximized;
+                        // Change border style first or else the ClientSize will be larger than the screen dimensions
                         FormBorderStyle = FormBorderStyle.None;
+                        WindowState = FormWindowState.Maximized;
                     }
                     else
                     {
@@ -494,7 +488,7 @@ namespace RTSP_Viewer
         private void ViewerStatus_MouseClick(object sender, MouseEventArgs e)
         {
             Panel view = (Panel)sender;
-            
+
             // Switch to this view if in full screen view
             foreach (VlcControl vc in myVlcControl)
             {

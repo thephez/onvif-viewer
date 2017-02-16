@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace RTSP_Viewer.Classes
 {
-    class TagDatabase
+    public class TagDatabase
     {
         public List<Tag> Tags = new List<Tag>();
 
