@@ -8,6 +8,7 @@ using Vlc.DotNet.Forms;
 using RTSP_Viewer.Classes;
 using SDS.Video;
 using log4net;
+using System.Text.RegularExpressions;
 
 namespace RTSP_Viewer
 {
@@ -30,7 +31,7 @@ namespace RTSP_Viewer
         public Viewer()
         {
             log4net.Config.XmlConfigurator.Configure(new System.IO.FileInfo("logger.xml"));
-            log.Info("Application Form loading");
+            log.Info("\nApplication Form loading");
             InitializeComponent();
             this.KeyPreview = true;
             this.FormClosing += Form1_FormClosing;
@@ -58,6 +59,8 @@ namespace RTSP_Viewer
             // Call disconnect (if tagClient is not null)
             tagClient?.Disconnect();
             Cursor.Current = Cursors.Default;
+
+            log.Info("Application Form closing");
         }
 
         private void InitializeForm()
@@ -76,7 +79,7 @@ namespace RTSP_Viewer
                 this.Controls.Add(vc);
             }
 
-            //Camera.GenerateHashTable();
+            Camera.GenerateHashTable();
         }
 
         private void SetupVlc()
@@ -84,7 +87,7 @@ namespace RTSP_Viewer
             NumberOfViews = GetNumberOfViews();
             myVlcControl = new VlcControl[NumberOfViews];
             vlcOverlay = new Panel[NumberOfViews];
-            string[] vlcMediaOptions = getIniValue("VlcOptions").Split(',');
+            string[] vlcMediaOptions = Regex.Split(getIniValue("VlcOptions"), "\\s*,\\s*"); // Split by comma and trim whitespace
 
             for (int i = 0; i < NumberOfViews; i++)
             {
