@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.IO;
-using System.Collections;
 using My.Extensions;
 
 namespace SDS.Video
@@ -15,100 +11,129 @@ namespace SDS.Video
 
         // You must use a delegate to update the video connection
         // information in the video control.
-        public delegate void SetCameraCallback(int DisplayIndex, int Camera, int Preset);
-        public delegate void SetCameraScreenshot(int DisplayIndex);
+        //public delegate void SetCameraCallback(int DisplayIndex, int Camera, int Preset);
+        public delegate void SetRtspCallupCallback(int DisplayIndex, int Camera, int Preset); // string URI, int DisplayIndex);
+        //public delegate void SetCameraScreenshot(int DisplayIndex);
         public delegate void SetSequenceProgram(bool isProgramming, int displayIndex);
         public delegate bool GetSequenceProgram(int displayIndex);
 
-        private SetCameraCallback callbackDelegate;
-        private SetCameraScreenshot screenshotDelegate;
+        private SetRtspCallupCallback rtspCallupDelegate;
+        //private SetCameraCallback callbackDelegate;
+        //private SetCameraScreenshot screenshotDelegate;
         private SetSequenceProgram sequenceSetDelegate;
         private GetSequenceProgram sequenceGetDelegate;
 
-        private Thread WatchCallupFileThread;
+        //private Thread WatchCallupFileThread;
+        public FileInfo CallupsFilePath;
+        private FileSystemWatcher watcher = new FileSystemWatcher();
 
-        public CallupsTxtFile(SetCameraCallback SetDisplayCamera, SetCameraScreenshot SetDisplayScreenshot, SetSequenceProgram SetDisplayProgram, GetSequenceProgram GetDisplayProgram)
+        public CallupsTxtFile(SetRtspCallupCallback SetDisplayCamera)
         {
-            this.callbackDelegate = SetDisplayCamera;
-            this.screenshotDelegate = SetDisplayScreenshot;
-            this.sequenceSetDelegate = SetDisplayProgram;
-            this.sequenceGetDelegate = GetDisplayProgram;
+            CallupsFilePath = new FileInfo(@".\callup.txt"); // Global_Values.CallupsFilePath);
+            watcher.Path = CallupsFilePath.DirectoryName;
+            watcher.IncludeSubdirectories = false;
+            watcher.NotifyFilter = NotifyFilters.LastWrite;
+            watcher.Filter = CallupsFilePath.Name;
+            watcher.Changed += CallupFile_OnChange;
+            watcher.EnableRaisingEvents = true;
+
+            rtspCallupDelegate = SetDisplayCamera;
             logger = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         }
 
-        public void StartInterface()
+        private void CallupFile_OnChange(object sender, FileSystemEventArgs e)
         {
-            InitializeCallupsTextFile();
-
-            if (WatchCallupFileThread != null)
-            {
-                if (WatchCallupFileThread.IsAlive)
-                    return;
-            }
-            // Create the Indusoft update thread
-            WatchCallupFileThread = new Thread(WatchCallupFile);
-
-            //   Make sure the Indusoft update thread is a background thread. This makes sure the 
-            //  thread is terminated when the form is closed.
-            WatchCallupFileThread.IsBackground = true;
-            WatchCallupFileThread.SetApartmentState(ApartmentState.STA);
-            WatchCallupFileThread.Start();
             if (logger.IsInfoEnabled)
-                logger.Info("Watch Callup.txt file thread started.");
+                logger.Info(string.Format("Change Detected in file [{0}]", e.FullPath));
+
+            try
+            {
+                ReadCallupsTextFile();
+            }
+            catch (Exception ex)
+            {
+                logger.Warn(ex.Message);
+            }
         }
 
+        //public CallupsTxtFile(SetCameraCallback SetDisplayCamera, SetCameraScreenshot SetDisplayScreenshot, SetSequenceProgram SetDisplayProgram, GetSequenceProgram GetDisplayProgram)
+        //{
+        //    CallupsFilePath = new FileInfo(Global_Values.CallupsFilePath);
+        //    this.callbackDelegate = SetDisplayCamera;
+        //    this.screenshotDelegate = SetDisplayScreenshot;
+        //    this.sequenceSetDelegate = SetDisplayProgram;
+        //    this.sequenceGetDelegate = GetDisplayProgram;
+        //    logger = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+        //}
 
-        private static int callbacks = 0;
+        //public void StartInterface()
+        //{
+        //    InitializeCallupsTextFile();
+
+        //    if (WatchCallupFileThread != null)
+        //    {
+        //        if (WatchCallupFileThread.IsAlive)
+        //            return;
+        //    }
+        //    // Create the HMI update thread
+        //    WatchCallupFileThread = new Thread(WatchCallupFile);
+
+        //    //   Make sure the HMI update thread is a background thread. This makes sure the 
+        //    //  thread is terminated when the form is closed.
+        //    WatchCallupFileThread.IsBackground = true;
+        //    WatchCallupFileThread.SetApartmentState(ApartmentState.STA);
+        //    WatchCallupFileThread.Start();
+        //    if (logger.IsInfoEnabled)
+        //        logger.Info("Watch Callup.txt file thread started.");
+        //}
+
+        //private static int callbacks = 0;
 
         private int sleepTime = 100;
         public int SleepTime
         {
-            set {sleepTime = value; }
+            set { sleepTime = value; }
         }
 
-        public void WatchCallupFile()
-        {
-            while (true)
-            {
+        //public void WatchCallupFile()
+        //{
+        //    while (true)
+        //    {
+        //        string filePath = System.Reflection.Assembly.GetEntryAssembly().Location + "callups.txt"; // Global_Values.CallupsFilePath;
+        //        try
+        //        {
+        //            CallupsFilePath.Refresh();
+        //            DateTime OldDateTime = CallupsFilePath.LastWriteTimeUtc; // File.GetLastWriteTimeUtc(filePath);
+        //            try
+        //            {
+        //                Thread.Sleep(sleepTime);
+        //            }
+        //            catch { }
 
-                string filePath = Global_Values.CallupsFilePath;
-                try
-                {
-                    DateTime OldDateTime = File.GetLastWriteTimeUtc(filePath);               
-                    try
-                    {
-                        System.Threading.Thread.Sleep(sleepTime);
-                    }
-                    catch { }
+        //            if (OldDateTime != CallupsFilePath.LastWriteTimeUtc) // File.GetLastWriteTimeUtc(filePath))
+        //            {
+        //                Thread.Sleep(sleepTime); // Global_Values.PollingInterval);
+        //                ReadCallupsTextFile();
+        //            }
+        //        }
+        //        catch (Exception e)
+        //        {
+        //            string writetext = "Error loading Callups.txt file ----- Execption Message: " + e.Message;
+        //            if (logger.IsInfoEnabled)
+        //                logger.Info(writetext);
 
-                    if (OldDateTime != File.GetLastWriteTimeUtc(filePath))
-                    {
-                        System.Threading.Thread.Sleep(Global_Values.PollingInterval);
-                        ReadCallupsTextFile();
-                    }
-                }
-                catch (Exception e)
-                {
-
-                    string writetext = "Error loading Callups.txt file ----- Execption Message: " + e.Message;
-                    if (logger.IsInfoEnabled)
-                        logger.Info(writetext);
-
-                    try
-                    {
-                        System.Threading.Thread.Sleep(Global_Values.RetryInterval);
-                    }
-                    catch { }
-                }
-
-            }
-
-        }
-
-
+        //            try
+        //            {
+        //                Thread.Sleep(15000); // Global_Values.RetryInterval);
+        //            }
+        //            catch { }
+        //        }
+        //    }
+        //}
+        
         public void ReadCallupsTextFile()
         {
-            string readText = File.ReadAllText(Global_Values.CallupsFilePath);
+            string readText = File.ReadAllText(CallupsFilePath.FullName); // Global_Values.CallupsFilePath);
             readText = readText.Replace("\r", string.Empty);
             readText = readText.Replace("\n", string.Empty);
             if (logger.IsInfoEnabled)
@@ -125,25 +150,25 @@ namespace SDS.Video
                         try
                         {
                             string[] Callup = callup.Split('M', 'C', 'P', 'm', 'c', 'p', '\r');
-                            int Monitor = Convert.ToInt32(Callup[1]) - 1;
+                            int Monitor = Convert.ToInt32(Callup[1]); // - 1;
                             int Camera = Convert.ToInt32(Callup[2]);
                             int Preset = Convert.ToInt32(Callup[3]);
-                            callbackDelegate(Monitor, Camera, Preset);
+                            //callbackDelegate(Monitor, Camera, Preset);
+                            rtspCallupDelegate(Monitor, Camera, Preset);
 
                             string writetext = "Callup Command-- " + readText + " --Processed Correctly -- " + DateTime.Now;
-                            File.WriteAllText(Global_Values.CallupsFilePath, writetext);
+                            File.WriteAllText(CallupsFilePath.Name + ".status", writetext); // Global_Values.CallupsFilePath, writetext);
 
                             //sequenceSetDelegate(True, Monitor);
                         }
                         catch (Exception e)
                         {
-                            string ErrorText = "Error with Callup String ----- " + e.Message + '\n' + "Correct Format for single camera: M1 C15 P2" + '\n' + "Multiple Cameras: M1 C15 P2;M2 C12 P1" + '\n' + "Turning on/off sequence: 'Sequencing:On:M1' or 'Sequencing:Off:M1'";
+                            string ErrorText = string.Format("Error with Callup String [{0}] ----- \n\n{1}\nCorrect Format for single camera: 'M1 C15 P2' \nMultiple Cameras: 'M1 C15 P2;M2 C12 P1' \nTurning on/off sequence: 'Sequencing:On:M1' or 'Sequencing:Off:M1'", callup, e.Message);
                             if (logger.IsInfoEnabled)
                                 logger.Info(ErrorText);
                             System.Windows.Forms.MessageBox.Show(ErrorText, "Callups.txt file Error");
-                            File.WriteAllText(Global_Values.CallupsFilePath, ErrorText);
+                            File.WriteAllText(CallupsFilePath.Name + ".status", ErrorText); // Global_Values.CallupsFilePath, ErrorText);
                         }
-
                     }
                 }
                 else if (CameraCallups[0].Equals("Sequencing", StringComparison.OrdinalIgnoreCase))
@@ -195,8 +220,8 @@ namespace SDS.Video
                     //the sequence will also use this preset number. Once the off command ('Sequencing:Off:M1') is sent, the next camera callup 
                     //sent to that monitor will be executed as normal (i.e. it will not switch away from it unless the user calls up another camera).
                     //The defined tour will not be saved.
-                    
-                    string[] Callup = CameraCallups[2].Split('M','m');
+
+                    string[] Callup = CameraCallups[2].Split('M', 'm');
                     int Monitor = Convert.ToInt32(Callup[1]) - 1;
                     if (CameraCallups[1].Equals("On", StringComparison.OrdinalIgnoreCase))
                     {
@@ -213,8 +238,7 @@ namespace SDS.Video
                     if (logger.IsInfoEnabled)
                         logger.Info(ErrorText);
                     System.Windows.Forms.MessageBox.Show(ErrorText, "Callups.txt file Error");
-                    File.WriteAllText(Global_Values.CallupsFilePath, ErrorText);
-
+                    File.WriteAllText(CallupsFilePath.Name + ".status", ErrorText); // Global_Values.CallupsFilePath, ErrorText);
                 }
             }
             catch (Exception e)
@@ -223,7 +247,7 @@ namespace SDS.Video
                 if (logger.IsInfoEnabled)
                     logger.Info(ErrorText);
                 System.Windows.Forms.MessageBox.Show(ErrorText, "Callups.txt file Error");
-                File.WriteAllText(Global_Values.CallupsFilePath, ErrorText);
+                File.WriteAllText(CallupsFilePath.Name + ".status", ErrorText); // Global_Values.CallupsFilePath, ErrorText);
             }
         }
 
@@ -232,7 +256,7 @@ namespace SDS.Video
             try
             {
                 string writetext = "Quad Program Started and can write to the Callups .txt file ----- " + DateTime.Now;
-                File.WriteAllText(Global_Values.CallupsFilePath, writetext);
+                File.WriteAllText(CallupsFilePath.FullName, writetext); // Global_Values.CallupsFilePath, writetext);
             }
             catch (Exception e)
             {
@@ -242,6 +266,5 @@ namespace SDS.Video
                     logger.Info(ErrorText);
             }
         }
-
     }
 }

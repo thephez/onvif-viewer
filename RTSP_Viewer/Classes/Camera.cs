@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Drawing;
 using System.Net;
-//using Bosch.VideoSDK.AxCameoLib;
 using System.Xml.Linq;
 using System.Xml.Schema;
 using System.Xml;
@@ -15,7 +13,7 @@ namespace SDS.Video
     public class Camera
     {
         private int CameraNumber;
-        private String cameraIP;
+        private string cameraIP;
         private int StreamIndex;
         private int DeviceIndex;
         public string Manufacturer { get; set; }
@@ -54,9 +52,42 @@ namespace SDS.Video
             }
         }
 
+        /// <summary>
+        /// Get RTSP URI for the requested camera number. 
+        /// Based on Manufacturer and other info from XML file
+        /// </summary>
+        /// <param name="cameraNumber">Camera to get RTSP URI for</param>
+        /// <returns>RTSP URI that can be used to display live video</returns>
+        public static string GetRtspUri(int cameraNumber)
+        {
+            Camera cam = GetCamera(cameraNumber);
+            int rtspPort = 554;
+            string uri = null;
+
+            if (cam.Manufacturer.Equals("Bosch", StringComparison.CurrentCultureIgnoreCase))
+            {
+                uri = string.Format("rtsp://{0}:{1}@{2}:{3}/?h26x={4}&line={5}&inst={6}", "live", "Sierra123", cam.IP, rtspPort, 4, cam.Device, cam.Stream);
+            }
+            else if (cam.Manufacturer.Equals("Axis", StringComparison.CurrentCultureIgnoreCase))
+            {
+                uri = string.Format("rtsp://{0}:{1}@{2}:{3}/onvif-media/media.amp", "onvif", "Sierra123", cam.IP, rtspPort);
+            }
+            else if (cam.Manufacturer.Equals("Pelco", StringComparison.CurrentCultureIgnoreCase))
+            {
+                uri = string.Format("rtsp://{0}:{1}/stream{2}", cam.IP, rtspPort, cam.Stream);
+            }
+            else if (cam.Manufacturer.Equals("Samsung", StringComparison.CurrentCultureIgnoreCase))
+            {
+                uri = string.Format("rtsp://{0}:{1}@{2}:{3}/onvif/profile{4}/media.smp", "onvif", "Sierra123", cam.IP, rtspPort, cam.Stream);
+            }
+
+            return uri;
+        }
+
         public static void GenerateHashTable()
         {
             Camera c;
+            int defaultStream = 1; // Global_Values.DefaultVideoStream
 
             cameraSet.Clear();
 
@@ -74,7 +105,7 @@ namespace SDS.Video
                 doc.Validate(schemas, (sender, vargs) =>
                 {
                     IXmlLineInfo info = sender as IXmlLineInfo;
-                    String line = info != null ? info.LineNumber.ToString() : "not known";
+                    string line = info != null ? info.LineNumber.ToString() : "not known";
                     System.Windows.Forms.MessageBox.Show("Cameras.xml validation failure on line " + line + ": " + vargs.Message.Replace("\t", "").Replace("\n", ""));
                 },
                 true);
@@ -98,7 +129,7 @@ namespace SDS.Video
             {
                 c = new Camera(int.Parse(cam.Number));
 
-                c.Stream = 1; //cam.Stream.Equals("default", StringComparison.CurrentCultureIgnoreCase) ? Global_Values.DefaultVideoStream : int.Parse(cam.Stream);
+                c.Stream = cam.Stream.Equals("default", StringComparison.CurrentCultureIgnoreCase) ? defaultStream : int.Parse(cam.Stream);
                 c.IP = cam.IP;
                 c.Device = int.Parse(cam.Device);
                 c.dataLoaded = true;
@@ -114,6 +145,7 @@ namespace SDS.Video
                         "an invalid camera number. Camera number used was " + int.Parse(cam.Number));
                 }
             }
+            logger.Info(string.Format("Imported information for {0} camera(s) from xml file", cameraSet.Count));
         }
 
         private static Camera LookupCamera(int i)

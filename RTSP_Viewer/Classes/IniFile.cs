@@ -32,7 +32,7 @@ namespace SDS.Utilities.IniFiles
         {
             var RetVal = new StringBuilder(255);
             //GetPrivateProfileString(Section ?? EXE, Key, "", RetVal, 255, Path);
-            
+
             // Conversion to ini-parser package
             if (Section == null)
             {
@@ -40,7 +40,10 @@ namespace SDS.Utilities.IniFiles
             }
             else
             {
-                RetVal.Append(data[Section ?? EXE][Key]);
+                if (data.Sections.ContainsSection(Section))
+                    RetVal.Append(data[Section ?? EXE][Key]);
+                else
+                    return null;
             }
 
             return RetVal.ToString();
@@ -51,7 +54,11 @@ namespace SDS.Utilities.IniFiles
             //WritePrivateProfileString(Section ?? EXE, Key, Value, Path);
 
             // Conversion to ini-parser package
+            if (Section != null && !data.Sections.ContainsSection(Section))
+                data.Sections.AddSection(Section);
+
             data[Section ?? EXE][Key] = Value;
+
             parser.WriteFile(Path, data);
         }
 

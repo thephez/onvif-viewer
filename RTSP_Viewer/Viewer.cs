@@ -19,6 +19,9 @@ namespace RTSP_Viewer
         private int NumberOfViews;
         private const int ViewPadding = 1;
 
+        // Create the HMI interface
+        CallupsTxtFile hmi;
+
         VlcControl[] myVlcControl;
         Panel[] vlcOverlay;
         Panel statusBg = new Panel();
@@ -46,9 +49,13 @@ namespace RTSP_Viewer
             this.SizeChanged += Form1_ResizeEnd;
 
             OpcInterfaceInit();
+
             // This handles the size change that occurs after the Vlc controls initialize on startup
             setSizes();
             InitViewerStatus();
+
+            // Initialize the HMI interface
+            hmi = new CallupsTxtFile(new CallupsTxtFile.SetRtspCallupCallback(CameraCallup));
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -257,6 +264,18 @@ namespace RTSP_Viewer
                 // Store the URI in the ini file
                 MyIni.Write("lastURI", URI, "Viewer_" + ViewerNum);
             }
+        }
+
+        /// <summary>
+        /// Callup the requested camera on the provided display number (preset not implemented)
+        /// </summary>
+        /// <param name="ViewerNum">Control to display video on</param>
+        /// <param name="CameraNum">Camera number to display</param>
+        /// <param name="Preset">Camera Preset</param>
+        private void CameraCallup(int ViewerNum, int CameraNum, int Preset)
+        {
+            string URI = SDS.Video.Camera.GetRtspUri(CameraNum);
+            CameraCallup(URI, ViewerNum);
         }
 
         private void PlayBtn_Click(object sender, EventArgs e)
