@@ -20,7 +20,9 @@ namespace SDS.Video
         private bool isConnected = false;
         private bool dataLoaded = false;
 
-        //private Bosch.VideoSDK.Live.CameraController controller;
+        private string User;
+        private string Password;
+        public static string DefaultManufacturer { get; set; } = "Bosch";  // Not sure we want this to be a static field
 
         private static Dictionary<int, Camera> cameraSet = new Dictionary<int, Camera>();
 
@@ -38,7 +40,7 @@ namespace SDS.Video
         {
             Camera cam;
             if (cameraSet.ContainsKey(cameraNumber))
-            {                
+            {
                 cam = cameraSet[cameraNumber];
                 cam.CameraPreset = preset;
                 return cam;
@@ -64,13 +66,20 @@ namespace SDS.Video
             int rtspPort = 554;
             string uri = null;
 
+            if (cam.User != null && cam.Password != null)
+                uri = string.Format("rtsp://{0}:{1}@", cam.User, cam.Password);
+            else
+                uri = "rstp://";
+
+
             if (cam.Manufacturer.Equals("Bosch", StringComparison.CurrentCultureIgnoreCase))
             {
-                uri = string.Format("rtsp://{0}:{1}@{2}:{3}/?h26x={4}&line={5}&inst={6}", "live", "Sierra123", cam.IP, rtspPort, 4, cam.Device, cam.Stream);
+                uri = string.Format("{0}{1}:{2}/?h26x={3}&line={4}&inst={5}", uri, cam.IP, rtspPort, 4, cam.Device, cam.Stream);
             }
             else if (cam.Manufacturer.Equals("Axis", StringComparison.CurrentCultureIgnoreCase))
             {
-                uri = string.Format("rtsp://{0}:{1}@{2}:{3}/onvif-media/media.amp", "onvif", "Sierra123", cam.IP, rtspPort);
+                //uri = string.Format("rtsp://{0}:{1}@{2}:{3}/onvif-media/media.amp", "onvif", "Sierra123", cam.IP, rtspPort);
+                uri = string.Format("{0}{1}:{2}/onvif-media/media.amp", uri, cam.IP, rtspPort);
             }
             else if (cam.Manufacturer.Equals("Pelco", StringComparison.CurrentCultureIgnoreCase))
             {
@@ -78,16 +87,27 @@ namespace SDS.Video
             }
             else if (cam.Manufacturer.Equals("Samsung", StringComparison.CurrentCultureIgnoreCase))
             {
-                uri = string.Format("rtsp://{0}:{1}@{2}:{3}/onvif/profile{4}/media.smp", "onvif", "Sierra123", cam.IP, rtspPort, cam.Stream);
+                //uri = string.Format("rtsp://{0}:{1}@{2}:{3}/onvif/profile{4}/media.smp", "onvif", "Sierra123", cam.IP, rtspPort, cam.Stream);
+                uri = string.Format("{0}{1}:{2}/onvif/profile{3}/media.smp", uri, cam.IP, rtspPort, cam.Stream);
+            }
+            else
+            {
+                throw new Exception(string.Format("Camera manufacturer '{0}' not recognized.", cam.Manufacturer),
+                    new Exception(string.Format("Unable to create RTSP URI for manufacturer '{0}'.", cam.Manufacturer)));
             }
 
             return uri;
         }
 
-        public static void GenerateHashTable()
+        /// <summary>
+        /// Creates a dictionary containing all cameras found in the cameras XML file
+        /// </summary>
+        /// <param name="defaultManufacturer">Manufacturer to use if not listed in camera XML file</param>
+        public static void GenerateHashTable(string defaultManufacturer)
         {
             Camera c;
             int defaultStream = 1; // Global_Values.DefaultVideoStream
+            DefaultManufacturer = defaultManufacturer;
 
             cameraSet.Clear();
 
@@ -106,7 +126,7 @@ namespace SDS.Video
                 {
                     IXmlLineInfo info = sender as IXmlLineInfo;
                     string line = info != null ? info.LineNumber.ToString() : "not known";
-                    System.Windows.Forms.MessageBox.Show("Cameras.xml validation failure on line " + line + ": " + vargs.Message.Replace("\t", "").Replace("\n", ""));
+                    System.Windows.Forms.MessageBox.Show(string.Format("Cameras.xml validation failure on line {0}: {1}", line, vargs.Message.Replace("\t", "").Replace("\n", "")));
                 },
                 true);
             }
@@ -122,7 +142,9 @@ namespace SDS.Video
                               Stream = camera.Element("stream").Value.Trim(),
                               Device = camera.Element("device").Value.Trim(),
                               Number = camera.Element("number").Value.Trim(),
-                              Manufacturer = camera.Element("manufacturer").Value.Trim(),
+                              Manufacturer = (string)camera.Element("manufacturer") ?? DefaultManufacturer,
+                              User = (string)camera.Element("username"),
+                              Password = (string)camera.Element("password"),
                           };
 
             foreach (var cam in cameras)
@@ -133,16 +155,18 @@ namespace SDS.Video
                 c.IP = cam.IP;
                 c.Device = int.Parse(cam.Device);
                 c.dataLoaded = true;
-                c.Manufacturer = cam.Manufacturer;
+                c.Manufacturer = cam.Manufacturer == null ? "Not provided" : cam.Manufacturer;
+                c.User = cam.User;
+                c.Password = cam.Password;
 
                 try
                 {
                     cameraSet.Add(c.Number, c);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    logger.Error("Error adding camera value to hash table. This may be a collision (a repeated camera number) or " +
-                        "an invalid camera number. Camera number used was " + int.Parse(cam.Number));
+                    logger.Error(string.Format("Error adding camera value to hash table. This may be a collision (a repeated camera number) " +
+                        " or an invalid camera number. Camera number used was {0}.", int.Parse(cam.Number)));
                 }
             }
             logger.Info(string.Format("Imported information for {0} camera(s) from xml file", cameraSet.Count));
@@ -163,12 +187,6 @@ namespace SDS.Video
             set { isConnected = value; }
             get { return isConnected; }
         }
-
-        //public Bosch.VideoSDK.Live.CameraController Controller
-        //{
-        //    set { controller = value; }
-        //    get { return controller; }
-        //}
 
         public String IP
         {
@@ -207,7 +225,7 @@ namespace SDS.Video
 
         public void reloadData()
         {
-            GenerateHashTable();
+            GenerateHashTable(DefaultManufacturer);
         }
 
         public Image TakeScreenshot()
@@ -215,8 +233,8 @@ namespace SDS.Video
             Image im = null;
             try
             {
-                String reqURL = "http://" + IP + "/snap.jpg?JpegSize=XL&JpegCam=" + Device;
-                WebRequest req = HttpWebRequest.Create(reqURL);
+                string reqURL = "http://" + IP + "/snap.jpg?JpegSize=XL&JpegCam=" + Device;
+                WebRequest req = WebRequest.Create(reqURL);
                 WebResponse resp = req.GetResponse();
 
                 im = Image.FromStream(resp.GetResponseStream());

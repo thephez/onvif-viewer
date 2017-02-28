@@ -34,7 +34,9 @@ namespace RTSP_Viewer
         public Viewer()
         {
             log4net.Config.XmlConfigurator.Configure(new System.IO.FileInfo("logger.xml"));
-            log.Info("\nApplication Form loading");
+            log.Info("-------------------------");
+            log.Info("Application Form loading");
+
             InitializeComponent();
             this.KeyPreview = true;
             this.FormClosing += Form1_FormClosing;
@@ -86,7 +88,7 @@ namespace RTSP_Viewer
                 this.Controls.Add(vc);
             }
 
-            Camera.GenerateHashTable();
+            Camera.GenerateHashTable("Bosch");
         }
 
         private void SetupVlc()
@@ -274,8 +276,16 @@ namespace RTSP_Viewer
         /// <param name="Preset">Camera Preset</param>
         private void CameraCallup(int ViewerNum, int CameraNum, int Preset)
         {
-            string URI = SDS.Video.Camera.GetRtspUri(CameraNum);
-            CameraCallup(URI, ViewerNum);
+            try
+            {
+                string URI = Camera.GetRtspUri(CameraNum);
+                CameraCallup(URI, ViewerNum);
+            }
+            catch (Exception ex)
+            {
+                log.Warn(string.Format("Exception calling up camera: {0}", ex.Message));
+                throw;
+            }
         }
 
         private void PlayBtn_Click(object sender, EventArgs e)

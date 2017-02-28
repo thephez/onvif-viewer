@@ -11,14 +11,13 @@ namespace SDS.Video
 
         // You must use a delegate to update the video connection
         // information in the video control.
-        //public delegate void SetCameraCallback(int DisplayIndex, int Camera, int Preset);
+
         public delegate void SetRtspCallupCallback(int DisplayIndex, int Camera, int Preset); // string URI, int DisplayIndex);
         //public delegate void SetCameraScreenshot(int DisplayIndex);
         public delegate void SetSequenceProgram(bool isProgramming, int displayIndex);
         public delegate bool GetSequenceProgram(int displayIndex);
 
         private SetRtspCallupCallback rtspCallupDelegate;
-        //private SetCameraCallback callbackDelegate;
         //private SetCameraScreenshot screenshotDelegate;
         private SetSequenceProgram sequenceSetDelegate;
         private GetSequenceProgram sequenceGetDelegate;
@@ -44,7 +43,7 @@ namespace SDS.Video
         private void CallupFile_OnChange(object sender, FileSystemEventArgs e)
         {
             if (logger.IsInfoEnabled)
-                logger.Info(string.Format("Change Detected in file [{0}]", e.FullPath));
+                logger.Debug(string.Format("Change Detected in file [{0}]", e.FullPath));
 
             try
             {
@@ -134,15 +133,16 @@ namespace SDS.Video
         public void ReadCallupsTextFile()
         {
             string readText = File.ReadAllText(CallupsFilePath.FullName); // Global_Values.CallupsFilePath);
-            readText = readText.Replace("\r", string.Empty);
-            readText = readText.Replace("\n", string.Empty);
+            readText = readText.Replace("\r\n", string.Empty).Trim();
+            
             if (logger.IsInfoEnabled)
-                logger.Info("Change Detected in Callups.txt: " + readText);
+                logger.Debug(string.Format("Change Detected in '{0}'.  File contains: {1}", CallupsFilePath.FullName, readText));
 
             try
             {
                 string[] CameraCallups = readText.Split(';', ':', '\r');
-                string FirstChar = CameraCallups[0].Left(1);
+                //string FirstChar = CameraCallups[0].Left(1);
+                string FirstChar = CameraCallups[0][0].ToString();
                 if (FirstChar.Equals("M", StringComparison.OrdinalIgnoreCase))
                 {
                     foreach (string callup in CameraCallups)
@@ -153,7 +153,6 @@ namespace SDS.Video
                             int Monitor = Convert.ToInt32(Callup[1]); // - 1;
                             int Camera = Convert.ToInt32(Callup[2]);
                             int Preset = Convert.ToInt32(Callup[3]);
-                            //callbackDelegate(Monitor, Camera, Preset);
                             rtspCallupDelegate(Monitor, Camera, Preset);
 
                             string writetext = "Callup Command-- " + readText + " --Processed Correctly -- " + DateTime.Now;
@@ -163,7 +162,7 @@ namespace SDS.Video
                         }
                         catch (Exception e)
                         {
-                            string ErrorText = string.Format("Error with Callup String [{0}] ----- \n\n{1}\nCorrect Format for single camera: 'M1 C15 P2' \nMultiple Cameras: 'M1 C15 P2;M2 C12 P1' \nTurning on/off sequence: 'Sequencing:On:M1' or 'Sequencing:Off:M1'", callup, e.Message);
+                            string ErrorText = string.Format("Error with Callup String [{0}] ----- \n\nException: {1}\nInner Exception: {2}\n\nCorrect Format for single camera: 'M1 C15 P2' \nMultiple Cameras: 'M1 C15 P2;M2 C12 P1' \nTurning on/off sequence: 'Sequencing:On:M1' or 'Sequencing:Off:M1'", callup, e.Message, e.InnerException.Message);
                             if (logger.IsInfoEnabled)
                                 logger.Info(ErrorText);
                             System.Windows.Forms.MessageBox.Show(ErrorText, "Callups.txt file Error");
