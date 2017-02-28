@@ -28,7 +28,8 @@ namespace SDS.Video
 
         public CallupsTxtFile(SetRtspCallupCallback SetDisplayCamera)
         {
-            CallupsFilePath = new FileInfo(@".\callup.txt"); // Global_Values.CallupsFilePath);
+
+            CallupsFilePath = new FileInfo(@".\callup.txt"); //c:\Control Software (Benner Demo)\Indusoft\callups.txt"); // Global_Values.CallupsFilePath);
             watcher.Path = CallupsFilePath.DirectoryName;
             watcher.IncludeSubdirectories = false;
             watcher.NotifyFilter = NotifyFilters.LastWrite;
@@ -141,7 +142,6 @@ namespace SDS.Video
             try
             {
                 string[] CameraCallups = readText.Split(';', ':', '\r');
-                //string FirstChar = CameraCallups[0].Left(1);
                 string FirstChar = CameraCallups[0][0].ToString();
                 if (FirstChar.Equals("M", StringComparison.OrdinalIgnoreCase))
                 {
@@ -150,7 +150,7 @@ namespace SDS.Video
                         try
                         {
                             string[] Callup = callup.Split('M', 'C', 'P', 'm', 'c', 'p', '\r');
-                            int Monitor = Convert.ToInt32(Callup[1]); // - 1;
+                            int Monitor = Convert.ToInt32(Callup[1]) - 1;
                             int Camera = Convert.ToInt32(Callup[2]);
                             int Preset = Convert.ToInt32(Callup[3]);
                             rtspCallupDelegate(Monitor, Camera, Preset);

@@ -69,7 +69,7 @@ namespace SDS.Video
             if (cam.User != null && cam.Password != null)
                 uri = string.Format("rtsp://{0}:{1}@", cam.User, cam.Password);
             else
-                uri = "rstp://";
+                uri = "rtsp://";
 
 
             if (cam.Manufacturer.Equals("Bosch", StringComparison.CurrentCultureIgnoreCase))
