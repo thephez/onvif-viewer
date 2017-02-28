@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:element name="catalog">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="camera" minOccurs="1" maxOccurs="unbounded">
+					<xs:complexType>
+						<xs:all>
+							<xs:element name="number" type="xs:int" minOccurs="1" maxOccurs="1"/>						
+							<xs:element name="ip" minOccurs="1" maxOccurs="1">
+								<xs:simpleType>
+									<xs:restriction base="xs:string">
+										<xs:pattern value="\s*(((1?[0-9]?[0-9]|2[0-4][0-9]|25[0-5]).){3}(1?[0-9]?[0-9]|2[0-4][0-9]|25[0-5]))\s*"/>
+									</xs:restriction>
+								</xs:simpleType>
+							</xs:element>
+							<xs:element name="stream" maxOccurs="1" default="default">
+								<xs:simpleType>
+									<xs:restriction base="xs:string">
+										<xs:enumeration value="1"/>
+										<xs:enumeration value="2"/>
+										<xs:enumeration value="default"/>
+									</xs:restriction>
+								</xs:simpleType>
+							</xs:element>														
+							<xs:element name="device" maxOccurs="1" default="1">	
+								<xs:simpleType>
+									<xs:restriction base="xs:int">
+										<xs:minInclusive value="1"/>
+										<xs:maxInclusive value="4"/>
+									</xs:restriction>
+								</xs:simpleType>
+							</xs:element>
+              <xs:element name="manufacturer" minOccurs="0" maxOccurs="1">
+                <xs:simpleType>
+                  <xs:restriction base="xs:string" />
+                </xs:simpleType>
+              </xs:element>
+              <xs:element name="username" minOccurs="0" maxOccurs="1">
+                <xs:simpleType>
+                  <xs:restriction base="xs:string" />
+                </xs:simpleType>
+              </xs:element>
+              <xs:element name="password" minOccurs="0" maxOccurs="1">
+                <xs:simpleType>
+                  <xs:restriction base="xs:string" />
+                </xs:simpleType>
+              </xs:element>
+            </xs:all>
+					</xs:complexType>				
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+		<xs:unique name="CameraNumber">
+			<xs:selector xpath="camera"/>
+			<xs:field xpath="number"/>
+		</xs:unique>
+	</xs:element>				
+</xs:schema>
