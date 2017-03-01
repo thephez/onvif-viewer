@@ -49,8 +49,7 @@ namespace SDS.Video
             {
                 log4net.ILog logger;
                 logger = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-                logger.Error("Tried to call up camera " + cameraNumber + " but it is not in the database.");
-                return null;
+                throw new Exception(string.Format("Non-existent camera requested [Camera #{0}].", cameraNumber));
             }
         }
 
@@ -63,6 +62,7 @@ namespace SDS.Video
         public static string GetRtspUri(int cameraNumber)
         {
             Camera cam = GetCamera(cameraNumber);
+
             int rtspPort = 554;
             string uri = null;
 
@@ -78,7 +78,6 @@ namespace SDS.Video
             }
             else if (cam.Manufacturer.Equals("Axis", StringComparison.CurrentCultureIgnoreCase))
             {
-                //uri = string.Format("rtsp://{0}:{1}@{2}:{3}/onvif-media/media.amp", "onvif", "Sierra123", cam.IP, rtspPort);
                 uri = string.Format("{0}{1}:{2}/onvif-media/media.amp", uri, cam.IP, rtspPort);
             }
             else if (cam.Manufacturer.Equals("Pelco", StringComparison.CurrentCultureIgnoreCase))
@@ -87,7 +86,6 @@ namespace SDS.Video
             }
             else if (cam.Manufacturer.Equals("Samsung", StringComparison.CurrentCultureIgnoreCase))
             {
-                //uri = string.Format("rtsp://{0}:{1}@{2}:{3}/onvif/profile{4}/media.smp", "onvif", "Sierra123", cam.IP, rtspPort, cam.Stream);
                 uri = string.Format("{0}{1}:{2}/onvif/profile{3}/media.smp", uri, cam.IP, rtspPort, cam.Stream);
             }
             else

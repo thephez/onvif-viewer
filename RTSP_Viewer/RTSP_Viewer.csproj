@@ -98,7 +98,6 @@
     <Compile Include="Classes\Camera.cs" />
     <Compile Include="Classes\IniFile.cs" />
     <Compile Include="Classes\OpcUaClient.cs" />
-    <Compile Include="Classes\StringExtensions.cs" />
     <Compile Include="Classes\TagDatabase.cs" />
     <Compile Include="Classes\Utilities.cs" />
     <Compile Include="Classes\VlcViewer.cs" />

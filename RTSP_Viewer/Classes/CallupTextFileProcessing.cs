@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Threading;
 using System.IO;
-using My.Extensions;
 
 namespace SDS.Video
 {
@@ -25,6 +23,7 @@ namespace SDS.Video
         //private Thread WatchCallupFileThread;
         public FileInfo CallupsFilePath;
         private FileSystemWatcher watcher = new FileSystemWatcher();
+        private string lastReadText = string.Empty;
 
         public CallupsTxtFile(SetRtspCallupCallback SetDisplayCamera)
         {
@@ -43,16 +42,17 @@ namespace SDS.Video
 
         private void CallupFile_OnChange(object sender, FileSystemEventArgs e)
         {
-            if (logger.IsInfoEnabled)
-                logger.Debug(string.Format("Change Detected in file [{0}]", e.FullPath));
+            logger.Debug(string.Format("Change Detected in file [{0}]", e.FullPath));
 
             try
             {
-                ReadCallupsTextFile();
+                ReadCallupsTextFile(e.FullPath);
             }
             catch (Exception ex)
             {
-                logger.Warn(ex.Message);
+                // Only log exceptions not related to the file being in use
+                if ((ex.Message.StartsWith("The process cannot access the file") && ex.Message.EndsWith("because it is being used by another process.")) == false)
+                    logger.Warn(ex.Message);
             }
         }
 
@@ -130,14 +130,22 @@ namespace SDS.Video
         //        }
         //    }
         //}
-        
-        public void ReadCallupsTextFile()
+
+        public void ReadCallupsTextFile(string file)
         {
-            string readText = File.ReadAllText(CallupsFilePath.FullName); // Global_Values.CallupsFilePath);
+            string readText = File.ReadAllText(file); // CallupsFilePath.FullName); // Global_Values.CallupsFilePath);
+
+            // Ignores duplicate commands (sometimes multiple events are triggered due to how files are written)
+            if (readText == lastReadText)
+            {
+                logger.Info(string.Format("File contents the same '{0}'.  Ignoring.", readText));
+                return;
+            }
+
+            lastReadText = readText;
             readText = readText.Replace("\r\n", string.Empty).Trim();
-            
-            if (logger.IsInfoEnabled)
-                logger.Debug(string.Format("Change Detected in '{0}'.  File contains: {1}", CallupsFilePath.FullName, readText));
+
+            logger.Info(string.Format("Change Detected in '{0}'.  File contains: {1}", file, readText));
 
             try
             {
@@ -162,9 +170,8 @@ namespace SDS.Video
                         }
                         catch (Exception e)
                         {
-                            string ErrorText = string.Format("Error with Callup String [{0}] ----- \n\nException: {1}\nInner Exception: {2}\n\nCorrect Format for single camera: 'M1 C15 P2' \nMultiple Cameras: 'M1 C15 P2;M2 C12 P1' \nTurning on/off sequence: 'Sequencing:On:M1' or 'Sequencing:Off:M1'", callup, e.Message, e.InnerException.Message);
-                            if (logger.IsInfoEnabled)
-                                logger.Info(ErrorText);
+                            string ErrorText = string.Format("Error with Callup String [{0}] ----- \n\nException: {1}\n\nCorrect Format for single camera: 'M1 C15 P2' \nMultiple Cameras: 'M1 C15 P2;M2 C12 P1' \nTurning on/off sequence: 'Sequencing:On:M1' or 'Sequencing:Off:M1'", callup, e.Message);
+                            logger.Error(string.Format("Exception: {0}", e.Message)); // ErrorText);
                             System.Windows.Forms.MessageBox.Show(ErrorText, "Callups.txt file Error");
                             File.WriteAllText(CallupsFilePath.Name + ".status", ErrorText); // Global_Values.CallupsFilePath, ErrorText);
                         }
@@ -234,15 +241,14 @@ namespace SDS.Video
                 else
                 {
                     string ErrorText = "Error with Callup String, incorrect format." + '\n' + "Correct Format for single camera: M1 C15 P2" + '\n' + "Multiple Cameras: M1 C15 P2;M2 C12 P1" + '\n' + "Turning on/off sequence: 'Sequencing:On:M1' or 'Sequencing:Off:M1'";
-                    if (logger.IsInfoEnabled)
-                        logger.Info(ErrorText);
+                    logger.Error(ErrorText);
                     System.Windows.Forms.MessageBox.Show(ErrorText, "Callups.txt file Error");
                     File.WriteAllText(CallupsFilePath.Name + ".status", ErrorText); // Global_Values.CallupsFilePath, ErrorText);
                 }
             }
             catch (Exception e)
             {
-                string ErrorText = "Error with Callup String ----- " + e.Message + '\n' + "Correct Format for single camera: M1 C15 P2" + '\n' + "Multiple Cameras: M1 C15 P2;M2 C12 P1" + '\n' + "Turning on/off sequence: 'Sequencing:On:M1' or 'Sequencing:Off:M1'";
+                string ErrorText = "Error with Callup String '" + readText + "' ----- " + e.Message + '\n' + "Correct Format for single camera: M1 C15 P2" + '\n' + "Multiple Cameras: M1 C15 P2;M2 C12 P1" + '\n' + "Turning on/off sequence: 'Sequencing:On:M1' or 'Sequencing:Off:M1'";
                 if (logger.IsInfoEnabled)
                     logger.Info(ErrorText);
                 System.Windows.Forms.MessageBox.Show(ErrorText, "Callups.txt file Error");

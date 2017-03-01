@@ -104,6 +104,7 @@ namespace RTSP_Viewer
                 vlcOverlay[i] = new Panel { Name = "VLC Overlay " + i, BackColor = Color.Transparent, Parent = myVlcControl[i], Dock = DockStyle.Fill, TabIndex = i };
                 vlcOverlay[i].MouseDoubleClick += VlcOverlay_MouseDoubleClick;
                 vlcOverlay[i].MouseClick += VlcOverlay_MouseClick;
+                vlcOverlay[i].Controls.Add(new Label { Name = "Status", Text = "", ForeColor = Color.White, Anchor = AnchorStyles.Top | AnchorStyles.Left });
 
                 ((System.ComponentModel.ISupportInitialize)(myVlcControl[i])).BeginInit();
 
@@ -258,6 +259,7 @@ namespace RTSP_Viewer
             if (ViewerNum >= 0)
             {
                 Debug.Print(myVlcControl[ViewerNum].State.ToString());
+                Invoke((Action)(() => { vlcOverlay[ViewerNum].Controls["Status"].Text = "Loading"; }));
                 myVlcControl[ViewerNum].Play(new Uri(URI), "");
                 myVlcControl[ViewerNum].BackColor = Color.Black;
                 Debug.Print(myVlcControl[ViewerNum].State.ToString());
@@ -281,10 +283,12 @@ namespace RTSP_Viewer
                 string URI = Camera.GetRtspUri(CameraNum);
                 CameraCallup(URI, ViewerNum);
             }
-            catch (Exception ex)
+            catch
             {
-                log.Warn(string.Format("Exception calling up camera: {0}", ex.Message));
-                throw;
+                myVlcControl[ViewerNum].Stop();
+                myVlcControl[ViewerNum].BackColor = Color.Gray;
+                string status = string.Format("Unavailable");
+                Invoke((Action)(() => { vlcOverlay[ViewerNum].Controls["Status"].Text = status; }));
             }
         }
 
@@ -371,6 +375,8 @@ namespace RTSP_Viewer
         private void MyVlcControl_EncounteredError(object sender, Vlc.DotNet.Core.VlcMediaPlayerEncounteredErrorEventArgs e)
         {
             VlcControl vlc = (VlcControl)sender;
+            Invoke((Action)(() => { vlcOverlay[int.Parse(vlc.Name.Split()[2])].Controls["Status"].Text = "Error"; }));
+
             MessageBox.Show(string.Format("Error encountered on '{0}':\n{1}", vlc.Name, e.ToString()), "VLC Control Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             vlc.UseWaitCursor = false;
         }
@@ -379,6 +385,8 @@ namespace RTSP_Viewer
         {
             VlcControl vlc = (VlcControl)sender;
             vlc.UseWaitCursor = false;
+
+            Invoke((Action)(() => { vlcOverlay[int.Parse(vlc.Name.Split()[2])].Controls["Status"].Text = ""; }));
 
             var mediaInformations = vlc.GetCurrentMedia().TracksInformations;
             foreach (var mediaInformation in mediaInformations)
