@@ -25,19 +25,31 @@ namespace SDS.Video
         private FileSystemWatcher watcher = new FileSystemWatcher();
         private string lastReadText = string.Empty;
 
-        public CallupsTxtFile(SetRtspCallupCallback SetDisplayCamera)
+        /// <summary>
+        /// Monitors the provided file and parses/calls up cameras on changes
+        /// </summary>
+        /// <param name="SetDisplayCamera">Delegate (method) to use for callups</param>
+        /// <param name="CallupFile">File to monitor (defaults to callup.txt in app folder if null/empty)</param>
+        public CallupsTxtFile(SetRtspCallupCallback SetDisplayCamera, string CallupFile)
         {
+            CallupFile = (string.IsNullOrEmpty(CallupFile)) ? @".\callup.txt" : CallupFile;
 
-            CallupsFilePath = new FileInfo(@".\callup.txt"); //c:\Control Software (Benner Demo)\Indusoft\callups.txt"); // Global_Values.CallupsFilePath);
-            watcher.Path = CallupsFilePath.DirectoryName;
-            watcher.IncludeSubdirectories = false;
-            watcher.NotifyFilter = NotifyFilters.LastWrite;
-            watcher.Filter = CallupsFilePath.Name;
-            watcher.Changed += CallupFile_OnChange;
-            watcher.EnableRaisingEvents = true;
+            if (File.Exists(CallupFile))
+            {
+                CallupsFilePath = new FileInfo(CallupFile); // @".\callup.txt"); //c:\Control Software (Benner Demo)\Indusoft\callups.txt"); // Global_Values.CallupsFilePath);
+                watcher.Path = CallupsFilePath.DirectoryName;
+                watcher.IncludeSubdirectories = false;
+                watcher.NotifyFilter = NotifyFilters.LastWrite;
+                watcher.Filter = CallupsFilePath.Name;
+                watcher.Changed += CallupFile_OnChange;
+                watcher.EnableRaisingEvents = true;
 
-            rtspCallupDelegate = SetDisplayCamera;
-            logger = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+                rtspCallupDelegate = SetDisplayCamera;
+                logger = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+            } else
+            {
+                throw new FileNotFoundException(string.Format("Provided callup file does not exist '{0}'.", CallupFile));
+            }
         }
 
         private void CallupFile_OnChange(object sender, FileSystemEventArgs e)
