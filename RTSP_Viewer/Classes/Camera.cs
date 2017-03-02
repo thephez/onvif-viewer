@@ -22,7 +22,11 @@ namespace SDS.Video
 
         private string User;
         private string Password;
+
         public static string DefaultManufacturer { get; set; } = "Bosch";  // Not sure we want this to be a static field
+        public static int DefaultStream { get; set; } = 1;  // Not sure we want this to be a static field
+        public static string DefaultCameraFile { get; set; } = "cameras.xml"; // Not sure we want this to be a static field
+        public static string DefaultSchemaFile { get; set; } = "cameras.xsd"; // Not sure we want this to be a static field
 
         private static Dictionary<int, Camera> cameraSet = new Dictionary<int, Camera>();
 
@@ -101,22 +105,23 @@ namespace SDS.Video
         /// Creates a dictionary containing all cameras found in the cameras XML file
         /// </summary>
         /// <param name="defaultManufacturer">Manufacturer to use if not listed in camera XML file</param>
-        public static void GenerateHashTable(string defaultManufacturer)
+        public static void GenerateHashTable(string defaultManufacturer, int defaultStream, string cameraFile, string schemaFile)
         {
             Camera c;
-            int defaultStream = 1; // Global_Values.DefaultVideoStream
+            DefaultStream = defaultStream; // Global_Values.DefaultVideoStream
             DefaultManufacturer = defaultManufacturer;
+            DefaultCameraFile = cameraFile;
 
             cameraSet.Clear();
 
             log4net.ILog logger;
             logger = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
-            //XDocument doc = XDocument.Load(Global_Values.CameraFile, LoadOptions.SetLineInfo);
-            XDocument doc = XDocument.Load("cameras.xml", LoadOptions.SetLineInfo);
+            //XDocument doc = XDocument.Load("cameras.xml", LoadOptions.SetLineInfo);
+            XDocument doc = XDocument.Load(cameraFile, LoadOptions.SetLineInfo);
             XmlSchemaSet schemas = new XmlSchemaSet();
-            //schemas.Add("", XmlReader.Create(new StreamReader(Global_Values.CameraSchema)));
-            schemas.Add("", XmlReader.Create(new StreamReader("cameras.xsd")));
+            //schemas.Add("", XmlReader.Create(new StreamReader("cameras.xsd")));
+            schemas.Add("", XmlReader.Create(new StreamReader(schemaFile)));
 
             try
             {
@@ -225,7 +230,7 @@ namespace SDS.Video
 
         public void reloadData()
         {
-            GenerateHashTable(DefaultManufacturer);
+            GenerateHashTable(DefaultManufacturer, DefaultStream, DefaultCameraFile, DefaultSchemaFile);
         }
 
         public Image TakeScreenshot()

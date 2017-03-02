@@ -66,7 +66,7 @@ namespace RTSP_Viewer
             catch (Exception ex)
             {
                 MessageBox.Show(string.Format("Error starting application.  Unable to monitor callup file.\nApplication will now exit.\n\nException:\n{0}", ex.Message), "Startup failure", MessageBoxButtons.OK, MessageBoxIcon.Stop);
-                Environment.Exit(0);
+                Environment.Exit(1);
             }
         }
 
@@ -99,8 +99,22 @@ namespace RTSP_Viewer
                 this.Controls.Add(vc);
             }
             
-            // Load camera xml file and assign default mfgr if one not provided
-            Camera.GenerateHashTable("Bosch");
+            // Load values from ini file (default to stream 1 if none provided)
+            int defaultStream = int.TryParse(getIniValue("DefaultStream"), out defaultStream) ? defaultStream : 1;
+            string cameraFile = getIniValue("CameraFile");
+            string cameraSchema = getIniValue("CameraSchemaFile");
+
+            if (File.Exists(cameraFile) && File.Exists(cameraSchema))
+            {
+                // Load camera xml file and assign default mfgr if one not provided
+                Camera.GenerateHashTable("Bosch", defaultStream, cameraFile, cameraSchema);
+            }
+            else
+            {
+                log.Error(string.Format("CameraFile [{0}] and/or CameraSchemaFile [{1}] not found.", cameraFile, cameraSchema));
+                MessageBox.Show(string.Format("Error starting application.  CameraFile '{0}' and/or CameraSchemaFile '{1}' not found.\nApplication will now exit.", cameraFile, cameraSchema), "Startup failure - Configuration files not found", MessageBoxButtons.OK, MessageBoxIcon.Stop);
+                Environment.Exit(2);
+            }
         }
 
         private void SetupVlc()
