@@ -19,6 +19,7 @@ namespace RTSP_Viewer
 
         private int NumberOfViews;
         private const int ViewPadding = 1;
+        private NotifyIcon notification = new NotifyIcon() { Icon = SystemIcons.Application, Visible = true };
 
         // Create the HMI interface
         CallupsTxtFile hmi;
@@ -83,6 +84,7 @@ namespace RTSP_Viewer
 
         private void InitializeForm()
         {
+            log.Info("Initializing form");
             // Remove all controls and recreate
             this.Controls.Clear();
 
@@ -114,7 +116,7 @@ namespace RTSP_Viewer
                 vlcOverlay[i] = new Panel { Name = "VLC Overlay " + i, BackColor = Color.Transparent, Parent = myVlcControl[i], Dock = DockStyle.Fill, TabIndex = i };
                 vlcOverlay[i].MouseDoubleClick += VlcOverlay_MouseDoubleClick;
                 vlcOverlay[i].MouseClick += VlcOverlay_MouseClick;
-                vlcOverlay[i].Controls.Add(new Label { Name = "Status", Visible = false, Text = "", ForeColor = Color.White, Anchor = AnchorStyles.Top | AnchorStyles.Left });
+                vlcOverlay[i].Controls.Add(new Label { Name = "Status", Visible = false, Text = "", AutoSize = true, ForeColor = Color.White, Anchor = AnchorStyles.Top | AnchorStyles.Left });
 
                 ((System.ComponentModel.ISupportInitialize)(myVlcControl[i])).BeginInit();
 
@@ -134,7 +136,7 @@ namespace RTSP_Viewer
                 // Events
                 myVlcControl[i].Playing += OnVlcPlaying;
                 myVlcControl[i].EncounteredError += MyVlcControl_EncounteredError;
-                myVlcControl[i].LengthChanged += MyVlcControl_LengthChanged;
+                //myVlcControl[i].LengthChanged += MyVlcControl_LengthChanged;
                 myVlcControl[i].Buffering += Form1_Buffering;
 
                 myVlcControl[i].Controls.Add(vlcOverlay[i]);
@@ -244,7 +246,7 @@ namespace RTSP_Viewer
         /// </summary>
         public void setSizes()
         {
-            log.Info(string.Format("Display - Switch to normal layout ({0} views)", NumberOfViews));
+            log.Info(string.Format("Display normal layout ({0} views)", NumberOfViews));
             SuspendLayout();
 
             Point[] displayPoint = Utilities.CalculatePointLocations(NumberOfViews, ClientSize.Width, ClientSize.Height);
@@ -269,7 +271,6 @@ namespace RTSP_Viewer
             log.Debug(string.Format("Camera callup for view {0} [{1}]", ViewerNum, URI));
             if (ViewerNum >= 0)
             {
-                Debug.Print(myVlcControl[ViewerNum].State.ToString());
                 Invoke((Action)(() => { vlcOverlay[ViewerNum].Controls["Status"].Text = "Loading"; vlcOverlay[ViewerNum].Controls["Status"].Visible = true; }));
                 myVlcControl[ViewerNum].Play(new Uri(URI), "");
                 myVlcControl[ViewerNum].BackColor = Color.Black;
@@ -298,7 +299,9 @@ namespace RTSP_Viewer
             {
                 myVlcControl[ViewerNum].Stop();
                 myVlcControl[ViewerNum].BackColor = Color.Gray;
-                string status = string.Format("Unavailable");
+                string status = string.Format("Camera #{0} unavailable", CameraNum);
+                //notification.ShowBalloonTip(1, this.Name, status, ToolTipIcon.Warning);
+
                 Invoke((Action)(() => { vlcOverlay[ViewerNum].Controls["Status"].Text = status; vlcOverlay[ViewerNum].Controls["Status"].Visible = true; }));
                 throw;
             }
@@ -365,7 +368,7 @@ namespace RTSP_Viewer
 
         private void SetVlcFullView(int viewerIndex)
         {
-            log.Info(string.Format("Display - Change to full screen layout (View #{0})", viewerIndex));
+            log.Info(string.Format("Display full screen layout (View #{0})", viewerIndex));
             foreach (VlcControl vlc in myVlcControl)
             {
                 if (vlc.TabIndex == viewerIndex)
@@ -379,11 +382,11 @@ namespace RTSP_Viewer
             }
         }
 
-        private void MyVlcControl_LengthChanged(object sender, Vlc.DotNet.Core.VlcMediaPlayerLengthChangedEventArgs e)
-        {
-            VlcControl vlc = (VlcControl)sender;
-            log.Debug(string.Format("{0} media length changed to {1}", vlc.Name, vlc.Length));
-        }
+        //private void MyVlcControl_LengthChanged(object sender, Vlc.DotNet.Core.VlcMediaPlayerLengthChangedEventArgs e)
+        //{
+        //    VlcControl vlc = (VlcControl)sender;
+        //    log.Debug(string.Format("{0} media duration changed to {1}", vlc.Name, vlc.GetCurrentMedia().Duration));
+        //}
 
         private void MyVlcControl_EncounteredError(object sender, Vlc.DotNet.Core.VlcMediaPlayerEncounteredErrorEventArgs e)
         {
@@ -413,7 +416,6 @@ namespace RTSP_Viewer
                 else if (mediaInformation.Type == Vlc.DotNet.Core.Interops.Signatures.MediaTrackTypes.Video)
                 {
                     log.Debug(string.Format("{0} Video info - Codec: {1}, Height: {2}, Width: {3}", vlc.Name, mediaInformation.CodecName, mediaInformation.Video.Height, mediaInformation.Video.Width));
-                    //        //        //myLblVideoCodec.InvokeIfRequired(l => l.Text += mediaInformation.CodecName);
                 }
             }
         }
@@ -421,6 +423,7 @@ namespace RTSP_Viewer
         private void Form1_Buffering(object sender, Vlc.DotNet.Core.VlcMediaPlayerBufferingEventArgs e)
         {
             VlcControl vlc = (VlcControl)sender;
+
             Console.WriteLine(string.Format("{0}\tBuffering: {1}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), vlc.Name));
         }
 
@@ -489,6 +492,7 @@ namespace RTSP_Viewer
             }
             catch
             {
+                log.Warn(string.Format("Error reading value for ini key [{0}]", key));
                 throw new Exception(string.Format("Error reading value for ini key [{0}]", key));
             }
         }

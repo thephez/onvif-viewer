@@ -184,9 +184,9 @@ namespace SDS.Video
                         }
                         catch (Exception e)
                         {
-                            string ErrorText = string.Format("Error with Callup String [{0}] ----- \n\nException: {1}\n\nCorrect Format for single camera: 'M1 C15 P2' \nMultiple Cameras: 'M1 C15 P2;M2 C12 P1' \nTurning on/off sequence: 'Sequencing:On:M1' or 'Sequencing:Off:M1'", callup, e.Message);
-                            logger.Error(string.Format("Exception: {0}", e.Message)); // ErrorText);
-                            System.Windows.Forms.MessageBox.Show(ErrorText, "Callups.txt file Error");
+                            string ErrorText = string.Format("Error with Callup [{0}] ----- \n\nException: {1}\n\nCorrect Format for single camera: 'M1 C15 P2' \nMultiple Cameras: 'M1 C15 P2;M2 C12 P1' \nTurning on/off sequence: 'Sequencing:On:M1' or 'Sequencing:Off:M1'", callup, e.Message);
+                            logger.Warn(string.Format("Exception: {0}", e.Message)); // ErrorText);
+                            //System.Windows.Forms.MessageBox.Show(ErrorText, "Callups.txt file Error");
                             File.WriteAllText(CallupsFilePath.Name + ".status", ErrorText); // Global_Values.CallupsFilePath, ErrorText);
                         }
                     }
@@ -255,7 +255,7 @@ namespace SDS.Video
                 else
                 {
                     string ErrorText = "Error with Callup String, incorrect format." + '\n' + "Correct Format for single camera: M1 C15 P2" + '\n' + "Multiple Cameras: M1 C15 P2;M2 C12 P1" + '\n' + "Turning on/off sequence: 'Sequencing:On:M1' or 'Sequencing:Off:M1'";
-                    logger.Error(ErrorText);
+                    logger.Warn(ErrorText);
                     System.Windows.Forms.MessageBox.Show(ErrorText, "Callups.txt file Error");
                     File.WriteAllText(CallupsFilePath.Name + ".status", ErrorText); // Global_Values.CallupsFilePath, ErrorText);
                 }
@@ -263,10 +263,9 @@ namespace SDS.Video
             catch (Exception e)
             {
                 string ErrorText = "Error with Callup String '" + readText + "' ----- " + e.Message + '\n' + "Correct Format for single camera: M1 C15 P2" + '\n' + "Multiple Cameras: M1 C15 P2;M2 C12 P1" + '\n' + "Turning on/off sequence: 'Sequencing:On:M1' or 'Sequencing:Off:M1'";
-                if (logger.IsInfoEnabled)
-                    logger.Info(ErrorText);
+                logger.Warn(ErrorText);
                 System.Windows.Forms.MessageBox.Show(ErrorText, "Callups.txt file Error");
-                File.WriteAllText(CallupsFilePath.Name + ".status", ErrorText); // Global_Values.CallupsFilePath, ErrorText);
+                File.WriteAllText(CallupsFilePath.Name + ".status", ErrorText);
             }
         }
 
@@ -275,14 +274,14 @@ namespace SDS.Video
             try
             {
                 string writetext = "Quad Program Started and can write to the Callups .txt file ----- " + DateTime.Now;
-                File.WriteAllText(CallupsFilePath.FullName, writetext); // Global_Values.CallupsFilePath, writetext);
+                File.WriteAllText(CallupsFilePath.FullName, writetext);
             }
             catch (Exception e)
             {
                 string ErrorText = "Error loading Callups .txt file on startup of quad.exe." + e.Message;
                 System.Windows.Forms.MessageBox.Show(ErrorText, "Callups.txt file Error");
                 if (logger.IsInfoEnabled)
-                    logger.Info(ErrorText);
+                    logger.Warn(ErrorText);
             }
         }
     }

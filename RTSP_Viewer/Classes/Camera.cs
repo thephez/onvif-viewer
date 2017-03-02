@@ -124,12 +124,14 @@ namespace SDS.Video
                 {
                     IXmlLineInfo info = sender as IXmlLineInfo;
                     string line = info != null ? info.LineNumber.ToString() : "not known";
+                    logger.Warn(string.Format("Cameras.xml validation failure on line {0}: {1}", line, vargs.Message.Replace("\t", "").Replace("\n", "")));
                     System.Windows.Forms.MessageBox.Show(string.Format("Cameras.xml validation failure on line {0}: {1}", line, vargs.Message.Replace("\t", "").Replace("\n", "")));
                 },
                 true);
             }
             catch (XmlSchemaValidationException e)
             {
+                logger.Error(string.Format("Camera Database Validation Error: {0}", e.Message));
                 System.Windows.Forms.MessageBox.Show("Camera Database Validation Error: " + e.Message, "Validation Error");
             }
 
