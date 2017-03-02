@@ -173,6 +173,8 @@ namespace SDS.Video
                             int Monitor = Convert.ToInt32(Callup[1]) - 1;
                             int Camera = Convert.ToInt32(Callup[2]);
                             int Preset = Convert.ToInt32(Callup[3]);
+
+                            logger.Debug(string.Format("Calling up camera #{0} on monitor #{1} (preset #{2})", Camera, Monitor, Preset));
                             rtspCallupDelegate(Monitor, Camera, Preset);
 
                             string writetext = "Callup Command-- " + readText + " --Processed Correctly -- " + DateTime.Now;

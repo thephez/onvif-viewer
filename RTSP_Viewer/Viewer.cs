@@ -244,6 +244,7 @@ namespace RTSP_Viewer
         /// </summary>
         public void setSizes()
         {
+            log.Info(string.Format("Display - Switch to normal layout ({0} views)", NumberOfViews));
             SuspendLayout();
 
             Point[] displayPoint = Utilities.CalculatePointLocations(NumberOfViews, ClientSize.Width, ClientSize.Height);
@@ -293,12 +294,13 @@ namespace RTSP_Viewer
                 string URI = Camera.GetRtspUri(CameraNum);
                 CameraCallup(URI, ViewerNum);
             }
-            catch
+            catch (Exception ex)
             {
                 myVlcControl[ViewerNum].Stop();
                 myVlcControl[ViewerNum].BackColor = Color.Gray;
                 string status = string.Format("Unavailable");
                 Invoke((Action)(() => { vlcOverlay[ViewerNum].Controls["Status"].Text = status; vlcOverlay[ViewerNum].Controls["Status"].Visible = true; }));
+                throw;
             }
         }
 
@@ -363,6 +365,7 @@ namespace RTSP_Viewer
 
         private void SetVlcFullView(int viewerIndex)
         {
+            log.Info(string.Format("Display - Change to full screen layout (View #{0})", viewerIndex));
             foreach (VlcControl vlc in myVlcControl)
             {
                 if (vlc.TabIndex == viewerIndex)
@@ -386,8 +389,9 @@ namespace RTSP_Viewer
         {
             VlcControl vlc = (VlcControl)sender;
             Invoke((Action)(() => { vlcOverlay[int.Parse(vlc.Name.Split()[2])].Controls["Status"].Text = "Error"; Visible = true; }));
+            log.Error(string.Format("Error encountered on '{0}': {1}", vlc.Name, e.ToString()));
 
-            MessageBox.Show(string.Format("Error encountered on '{0}':\n{1}", vlc.Name, e.ToString()), "VLC Control Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            //MessageBox.Show(string.Format("Error encountered on '{0}':\n{1}", vlc.Name, e.ToString()), "VLC Control Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             vlc.UseWaitCursor = false;
         }
 
