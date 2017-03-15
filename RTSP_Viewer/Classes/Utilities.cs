@@ -1,9 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 namespace RTSP_Viewer.Classes
 {
@@ -53,6 +50,55 @@ namespace RTSP_Viewer.Classes
             height = height / dim;
 
             return new Size(width - padding, height - padding);
+        }
+
+        public static string GetPtzCommandFromMouse(int mouseX, int mouseY, int width, int height)
+        {
+            int x = width / 2;
+            int y = height / 2;
+
+            int deltaX = mouseX - x;
+            int deltaY = y - mouseY;
+
+            float radius = (float)Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+            double angle = Math.Atan2(deltaY, deltaX) * (180 / Math.PI);
+
+            string function = "";
+            if (angle >= -45 && angle < 45)
+            {
+                function = "Pan Right";
+            }
+            else if (angle >= 45 && angle < 135)
+            {
+                function = "Tilt Up";
+            }
+            else if (angle >= 135 || angle < -135)
+            {
+                function = "Pan Left";
+            }
+            else if (angle >= -135 && angle < -45)
+            {
+                function = "Tilt Down";
+            }
+
+            return function;
+        }
+
+        /// <summary>
+        /// Check if a string contains an IP address
+        /// </summary>
+        /// <param name="ipString">String to check for an IP Address</param>
+        /// <returns>The first IP address found</returns>
+        public static string GetIpAddressFromString(string ipString)
+        {
+            string ValidIpAddressRegex = @"((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)";
+            Regex ip = new Regex(ValidIpAddressRegex);
+            MatchCollection ipAddr = ip.Matches(ipString);
+            if (ipAddr.Count > 0)
+                return ipAddr[0].ToString();
+            else
+                throw new Exception(string.Format("No IP address found in provided string ({0})", ipString));
+
         }
     }
 }
