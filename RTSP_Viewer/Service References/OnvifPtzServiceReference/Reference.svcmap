@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ReferenceGroup xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" ID="b6a599c0-9f3d-4aac-ab45-94925716b7b6" xmlns="urn:schemas-microsoft-com:xml-wcfservicemap">
+  <ClientOptions>
+    <GenerateAsynchronousMethods>false</GenerateAsynchronousMethods>
+    <GenerateTaskBasedAsynchronousMethod>true</GenerateTaskBasedAsynchronousMethod>
+    <EnableDataBinding>true</EnableDataBinding>
+    <ExcludedTypes />
+    <ImportXmlTypes>false</ImportXmlTypes>
+    <GenerateInternalTypes>false</GenerateInternalTypes>
+    <GenerateMessageContracts>false</GenerateMessageContracts>
+    <NamespaceMappings />
+    <CollectionMappings />
+    <GenerateSerializableTypes>true</GenerateSerializableTypes>
+    <Serializer>Auto</Serializer>
+    <UseSerializerForFaults>true</UseSerializerForFaults>
+    <ReferenceAllAssemblies>true</ReferenceAllAssemblies>
+    <ReferencedAssemblies />
+    <ReferencedDataContractTypes />
+    <ServiceContractMappings />
+  </ClientOptions>
+  <MetadataSources>
+    <MetadataSource Address="https://www.onvif.org/onvif/ver20/ptz/wsdl/ptz.wsdl" Protocol="http" SourceId="1" />
+  </MetadataSources>
+  <Metadata>
+    <MetadataFile FileName="xml.xsd" MetadataType="Schema" ID="8d5318ce-cc94-47ce-83d6-6b1300b7be61" SourceId="1" SourceUrl="http://www.w3.org/2001/xml.xsd" />
+    <MetadataFile FileName="xmlmime.xsd" MetadataType="Schema" ID="3dac7b47-f0ba-4aa3-b22b-09806e20eae9" SourceId="1" SourceUrl="http://www.w3.org/2005/05/xmlmime.xsd" />
+    <MetadataFile FileName="b-2.xsd" MetadataType="Schema" ID="eaee3555-ce64-4cdb-9c3f-c4b24c11ca02" SourceId="1" SourceUrl="http://docs.oasis-open.org/wsn/b-2.xsd" />
+    <MetadataFile FileName="include.xsd" MetadataType="Schema" ID="8ce0d858-ce62-45b0-8f68-06d9d5b8f9eb" SourceId="1" SourceUrl="http://www.w3.org/2004/08/xop/include.xsd" />
+    <MetadataFile FileName="ws-addr.xsd" MetadataType="Schema" ID="64e04042-2e96-4472-a8f5-e726168dba43" SourceId="1" SourceUrl="http://www.w3.org/2005/08/addressing/ws-addr.xsd" />
+    <MetadataFile FileName="common.xsd" MetadataType="Schema" ID="adb49695-63d6-4459-bded-b1182f219d30" SourceId="1" SourceUrl="https://www.onvif.org/onvif/ver10/schema/common.xsd" />
+    <MetadataFile FileName="item.xsd" MetadataType="Schema" ID="d6584ca6-03d8-4e5d-83a1-1772dc635364" SourceId="1" SourceUrl="http://www.w3.org/2003/05/soap-envelope/" />
+    <MetadataFile FileName="bf-2.xsd" MetadataType="Schema" ID="1fd5c714-6aaf-4388-b910-6ed535ed7bf0" SourceId="1" SourceUrl="http://docs.oasis-open.org/wsrf/bf-2.xsd" />
+    <MetadataFile FileName="PTZService.wsdl" MetadataType="Wsdl" ID="9e3d5066-c2d7-4faa-abf1-ce48c0cec4f4" SourceId="1" SourceUrl="https://www.onvif.org/onvif/ver20/ptz/wsdl/ptz.wsdl" />
+    <MetadataFile FileName="t-1.xsd" MetadataType="Schema" ID="ed149caf-1dcf-416d-b0f1-b2750a473332" SourceId="1" SourceUrl="http://docs.oasis-open.org/wsn/t-1.xsd" />
+    <MetadataFile FileName="onvif.xsd" MetadataType="Schema" ID="db4ae265-6185-4e47-8b88-ad0b619f0c5a" SourceId="1" SourceUrl="https://www.onvif.org/onvif/ver10/schema/onvif.xsd" />
+  </Metadata>
+  <Extensions>
+    <ExtensionFile FileName="configuration91.svcinfo" Name="configuration91.svcinfo" />
+    <ExtensionFile FileName="configuration.svcinfo" Name="configuration.svcinfo" />
+  </Extensions>
+</ReferenceGroup>
