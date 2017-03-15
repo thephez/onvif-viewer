@@ -19,13 +19,13 @@ namespace RTSP_Viewer
 
         private int NumberOfViews;
         private const int ViewPadding = 1;
-        private NotifyIcon notification = new NotifyIcon() { Icon = SystemIcons.Application, Visible = true };
+        //private NotifyIcon notification = new NotifyIcon() { Icon = SystemIcons.Application, Visible = true };
 
         // Create the HMI interface
         CallupsTxtFile hmi;
 
         VlcControl[] myVlcControl;
-        Panel[] vlcOverlay;
+        VlcOverlay[] vlcOverlay;
         Panel statusBg = new Panel();
 
         OpcUaClient tagClient;
@@ -45,6 +45,7 @@ namespace RTSP_Viewer
             this.KeyDown += Form1_KeyDown;
 
             InitializeForm();
+            System.Net.ServicePointManager.Expect100Continue = false;
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -121,13 +122,13 @@ namespace RTSP_Viewer
         {
             NumberOfViews = GetNumberOfViews();
             myVlcControl = new VlcControl[NumberOfViews];
-            vlcOverlay = new Panel[NumberOfViews];
+            vlcOverlay = new VlcOverlay[NumberOfViews];
             string[] vlcMediaOptions = Regex.Split(getIniValue("VlcOptions"), "\\s*,\\s*"); // Split by comma and trim whitespace
 
             for (int i = 0; i < NumberOfViews; i++)
             {
                 myVlcControl[i] = new VlcControl();
-                vlcOverlay[i] = new Panel { Name = "VLC Overlay " + i, BackColor = Color.Transparent, Parent = myVlcControl[i], Dock = DockStyle.Fill, TabIndex = i };
+                vlcOverlay[i] = new VlcOverlay { Name = "VLC Overlay " + i, BackColor = Color.Transparent, Parent = myVlcControl[i], Dock = DockStyle.Fill, TabIndex = i };
                 vlcOverlay[i].MouseEnter += VlcOverlay_MouseEnter;
                 vlcOverlay[i].MouseDoubleClick += VlcOverlay_MouseDoubleClick;
                 vlcOverlay[i].MouseClick += VlcOverlay_MouseClick;
@@ -140,11 +141,6 @@ namespace RTSP_Viewer
 
                 myVlcControl[i].VlcLibDirectory = VlcViewer.GetVlcLibLocation();  // Tried to call once outside loop, but it causes in exception on program close
                 myVlcControl[i].VlcMediaplayerOptions = vlcMediaOptions; // new string[] { "--network-caching=150", "--video-filter=deinterlace" };
-                // Standalone player
-                //Vlc.DotNet.Core.VlcMediaPlayer mp = new Vlc.DotNet.Core.VlcMediaPlayer(VlCLibDirectory);
-                //mp.SetMedia(new Uri("http://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_480p_surround-fix.avi"));
-                //mp.Play();
-
                 myVlcControl[i].Location = new Point(0, 0);
                 myVlcControl[i].Name = string.Format("VLC Viewer {0}", i);
                 myVlcControl[i].Rate = (float)0.0;
@@ -154,7 +150,6 @@ namespace RTSP_Viewer
                 // Events
                 myVlcControl[i].Playing += OnVlcPlaying;
                 myVlcControl[i].EncounteredError += MyVlcControl_EncounteredError;
-                //myVlcControl[i].LengthChanged += MyVlcControl_LengthChanged;
                 myVlcControl[i].Buffering += Form1_Buffering;
 
                 myVlcControl[i].Controls.Add(vlcOverlay[i]);
@@ -168,25 +163,31 @@ namespace RTSP_Viewer
         private void VlcOverlay_MouseEnter(object sender, EventArgs e)
         {
             // Select control so the mouse wheel event will go to the proper control
-            Panel overlay = (Panel)sender;
+            VlcOverlay overlay = (VlcOverlay)sender;
             overlay.Select();
+            if (!overlay.PtzEnabled | !myVlcControl[overlay.TabIndex].IsPlaying)
+            {
+                // Disable PTZ actions if not playing
+                overlay.PtzEnabled = false;
+                this.Cursor = Cursors.Default;
+            }
         }
 
         private void VlcOverlay_MouseWheel(object sender, MouseEventArgs e)
         {
-            Panel panel = (Panel)sender;
+            VlcOverlay panel = (VlcOverlay)sender;
             Debug.Print(string.Format("{0} Mouse wheel ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), panel.Name));
             MovePtz(panel, e);
         }
 
         private void VlcOverlay_MouseDown(object sender, MouseEventArgs e)
         {
-            Panel panel = (Panel)sender;
+            VlcOverlay panel = (VlcOverlay)sender;
             Debug.Print(string.Format("{0} Mouse down ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), panel.Name));
             MovePtz(panel, e);
         }
 
-        private void MovePtz(Control overlay, MouseEventArgs e)
+        private void MovePtz(VlcOverlay overlay, MouseEventArgs e)
         {
             if (!myVlcControl[overlay.TabIndex].IsPlaying)
             {
@@ -194,26 +195,31 @@ namespace RTSP_Viewer
                 return;
             }
 
-            // If a PTZ, use mouse location to determine command to send
-            string currentURI = MyIni.Read("lastURI", "Viewer_" + overlay.TabIndex);
-            string ipAddr = Utilities.GetIpAddressFromString(txtUri.Text);
+            //// If a PTZ, use mouse location to determine command to send
+            //string currentURI = MyIni.Read("lastURI", "Viewer_" + overlay.TabIndex);
+            //string ipAddr = Utilities.GetIpAddressFromString(txtUri.Text);
 
             // Check if PTZ and enable PTZ controls if necessary
-            SDS.Video.Onvif.OnvifPtz ptz = new SDS.Video.Onvif.OnvifPtz("127.0.0.1", 8251);
-
-            if (ptz.PtzAvailable)
+            //SDS.Video.Onvif.OnvifPtz ptz = new SDS.Video.Onvif.OnvifPtz(ipAddr, 80); // "127.0.0.1", 8046);
+            if (overlay.PtzEnabled) // ptz.PtzAvailable)
             {
+                if (overlay.PtzController == null)
+                {
+                    throw new Exception(string.Format("No PtzController configured for camera stream [{0}]", overlay.LastCamUri));
+                }
+
                 if (e.Delta != 0)
                 {
                     if (e.Delta > 0)
                     {
                         Debug.Print(string.Format("{0} Zoom in", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")));
-                        ptz.Zoom((float)0.20);
+                        overlay.PtzController.Zoom((float)0.20);
                     }
                     else if (e.Delta < 0)
                     {
                         Debug.Print(string.Format("{0} Zoom out", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")));
-                        ptz.Zoom((float)-0.20);
+                        overlay.PtzController.Zoom((float)-0.20);
+                        //ptz.Zoom((float)-0.20);
                     }
                 }
                 else
@@ -222,25 +228,24 @@ namespace RTSP_Viewer
                     Debug.Print(string.Format("{0} {1}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), ptzCommand));
 
                     if (ptzCommand == "Pan Right")
-                        ptz.Pan((float)0.25);
+                        overlay.PtzController.Pan((float)0.25);
                     else if (ptzCommand == "Pan Left")
-                        ptz.Pan((float)-0.25);
+                        overlay.PtzController.Pan((float)-0.25);
                     else if (ptzCommand == "Tilt Up")
-                        ptz.Tilt((float)0.25);
+                        overlay.PtzController.Tilt((float)0.25);
                     else if (ptzCommand == "Tilt Down")
-                        ptz.Tilt((float)-0.25);
+                        overlay.PtzController.Tilt((float)-0.25);
                 }
 
                 System.Threading.Thread.Sleep(50);
-                ptz.Stop();
-                Debug.Print(string.Format("{0} Camera stopped ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), ipAddr));
+                overlay.PtzController.Stop();
+                Debug.Print(string.Format("{0} Camera stopped ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.LastCamUri));
             }
-
         }
 
         private void VlcOverlay_MouseMove(object sender, MouseEventArgs e)
         {
-            Panel vlcOverlay = (Panel)sender;
+            VlcOverlay vlcOverlay = (VlcOverlay)sender;
 
             int x = vlcOverlay.Size.Width / 2;
             int y = vlcOverlay.Size.Height / 2;
@@ -265,27 +270,67 @@ namespace RTSP_Viewer
                 quadrant += " Left";
 
             string function = "";
-            if (angle >= -45 && angle < 45)
+            if (vlcOverlay.PtzEnabled)
             {
-                function = "Pan Right";
-                this.Cursor = Cursors.PanEast;
+                if (angle >= -22.5 && angle < 22.5)
+                {
+                    function = "Pan Right";
+                    this.Cursor = Cursors.PanEast;
+                }
+                else if (angle >= 22.5 && angle < 67.5)
+                {
+                    this.Cursor = Cursors.PanNE;
+                }
+                else if (angle >= 67.5 && angle < 112.5)
+                {
+                    function = "Tilt Up";
+                    this.Cursor = Cursors.PanNorth;
+                }
+                else if (angle >= 112.5 && angle < 157.5)
+                {
+                    this.Cursor = Cursors.PanNW;
+                }
+                else if (angle >= 157.5 || angle < -157.5)
+                {
+                    function = "Pan Left";
+                    this.Cursor = Cursors.PanWest;
+                }
+                else if (angle >= -157.5 && angle < -112.5)
+                {
+                    this.Cursor = Cursors.PanSW;
+                }
+                else if (angle >= -112.5 && angle < -67.5)
+                {
+                    function = "Tilt Down";
+                    this.Cursor = Cursors.PanSouth;
+                }
+                else if (angle >= -67.5 && angle < -22.5)
+                {
+                    this.Cursor = Cursors.PanSE;
+                }
+
+                //if (angle >= -45 && angle < 45)
+                //{
+                //    function = "Pan Right";
+                //    this.Cursor = Cursors.PanEast;
+                //}
+                //else if (angle >= 45 && angle < 135)
+                //{
+                //    function = "Tilt Up";
+                //    this.Cursor = Cursors.PanNorth;
+                //}
+                //else if (angle >= 135 || angle < -135)
+                //{
+                //    function = "Pan Left";
+                //    this.Cursor = Cursors.PanWest;
+                //}
+                //else if (angle >= -135 && angle < -45)
+                //{
+                //    function = "Tilt Down";
+                //    this.Cursor = Cursors.PanSouth;
+                //}
             }
-            else if (angle >= 45 && angle < 135)
-            {
-                function = "Tilt Up";
-                this.Cursor = Cursors.PanNorth;
-            }
-            else if (angle >= 135 || angle < -135)
-            {
-                function = "Pan Left";
-                this.Cursor = Cursors.PanWest;
-            }
-            else if (angle >= -135 && angle < -45)
-            {
-                function = "Tilt Down";
-                this.Cursor = Cursors.PanSouth;
-            }
-            
+
             Invoke((Action)(() => { vlcOverlay.Controls["Status"].Text = string.Format("{0}\nMouse @ ({1}, {2})\nPolar: {3:0.#}@{4:0.##}\nCart.: {5},{6}\nPTZ: {7}", quadrant, e.Location.X, e.Location.Y, radius, angle, deltaX, deltaY, function); vlcOverlay.Controls["Status"].Visible = true; }));
         }
 
@@ -421,6 +466,7 @@ namespace RTSP_Viewer
 
                 // Store the URI in the ini file
                 MyIni.Write("lastURI", URI, "Viewer_" + ViewerNum);
+                vlcOverlay[ViewerNum].LastCamUri = URI;
             }
         }
 
@@ -436,6 +482,18 @@ namespace RTSP_Viewer
             {
                 string URI = Camera.GetRtspUri(CameraNum);
                 CameraCallup(URI, ViewerNum);
+
+                Camera cam = Camera.GetCamera(CameraNum);
+
+                string ip = cam.IP; // "127.0.0.1";
+                int onvifPort = 80; // 8046
+                vlcOverlay[ViewerNum].PtzController = new SDS.Video.Onvif.OnvifPtz(ip, onvifPort, "admin", "P@ssw0rd"); // cam.IP, 80);
+
+                // Set the IsPtz property of the Camera
+                cam.IsPtz = vlcOverlay[ViewerNum].PtzController.IsPtz();
+
+                // Enable the PTZ functionality on the Overlay
+                vlcOverlay[ViewerNum].PtzEnabled = cam.IsPtz;
             }
             catch (Exception ex)
             {
@@ -452,6 +510,7 @@ namespace RTSP_Viewer
         private void PlayBtn_Click(object sender, EventArgs e)
         {
             CameraCallup(this.txtUri.Text, cbxViewSelect.SelectedIndex);
+            vlcOverlay[cbxViewSelect.SelectedIndex].PtzEnabled = true;  // Temporary for testing
         }
 
         private void BtnLoadLast_Click(object sender, EventArgs e)
@@ -703,5 +762,20 @@ namespace RTSP_Viewer
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Class based on Panel with extra properties
+    /// </summary>
+    public class VlcOverlay : Panel
+    {
+        public bool PtzEnabled {get; set; } = false;
+        public int LastCamNum { get; set; }
+        public string LastCamUri { get; set; }
+
+        /// <summary>
+        /// Used to send Pan, Tilt, or Zoom commands to the displayed camera
+        /// </summary>
+        public SDS.Video.Onvif.OnvifPtz PtzController { get; set; }
     }
 }

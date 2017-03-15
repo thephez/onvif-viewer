@@ -3,7 +3,7 @@ using System;
 
 namespace SDS.Video.Onvif
 {
-    class OnvifPtz
+    public class OnvifPtz
     {
         private System.Net.IPAddress IP;
         private int Port;
@@ -19,7 +19,7 @@ namespace SDS.Video.Onvif
             Port = port;
             PtzClient = OnvifServices.GetOnvifPTZClient(IP.ToString(), port);
             MediaClient = OnvifServices.GetOnvifMediaClient(IP.ToString(), Port);
-            IsPtz();
+            //IsPtz();
         }
 
         public OnvifPtz(string ip, int port, string user, string password)
@@ -31,7 +31,7 @@ namespace SDS.Video.Onvif
 
             PtzClient = OnvifServices.GetOnvifPTZClient(IP.ToString(), Port, User, Password);
             MediaClient = OnvifServices.GetOnvifMediaClient(IP.ToString(), Port, User, Password);
-            IsPtz();
+            //IsPtz();
         }
 
         /// <summary>

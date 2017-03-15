@@ -17,6 +17,7 @@ namespace SDS.Video
         private int StreamIndex;
         private int DeviceIndex;
         public string Manufacturer { get; set; }
+        public bool IsPtz { get; set; }
         private bool isConnected = false;
         private bool dataLoaded = false;
 
