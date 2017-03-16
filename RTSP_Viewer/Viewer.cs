@@ -10,6 +10,7 @@ using SDS.Video;
 using log4net;
 using System.Text.RegularExpressions;
 using System.IO;
+using System.ComponentModel;
 
 namespace RTSP_Viewer
 {
@@ -134,6 +135,7 @@ namespace RTSP_Viewer
                 vlcOverlay[i].MouseClick += VlcOverlay_MouseClick;
                 vlcOverlay[i].MouseMove += VlcOverlay_MouseMove;
                 vlcOverlay[i].MouseDown += VlcOverlay_MouseDown;
+                vlcOverlay[i].MouseUp += VlcOverlay_MouseUp;
                 vlcOverlay[i].MouseWheel += VlcOverlay_MouseWheel;
                 vlcOverlay[i].Controls.Add(new Label { Name = "Status", Visible = false, Text = "", AutoSize = true, ForeColor = Color.White, Anchor = AnchorStyles.Top | AnchorStyles.Left });
 
@@ -175,16 +177,30 @@ namespace RTSP_Viewer
 
         private void VlcOverlay_MouseWheel(object sender, MouseEventArgs e)
         {
-            VlcOverlay panel = (VlcOverlay)sender;
-            Debug.Print(string.Format("{0} Mouse wheel ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), panel.Name));
-            MovePtz(panel, e);
+            VlcOverlay overlay = (VlcOverlay)sender;
+            Debug.Print(string.Format("{0} Mouse wheel ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.Name));
+            MovePtz(overlay, e);
         }
 
         private void VlcOverlay_MouseDown(object sender, MouseEventArgs e)
         {
-            VlcOverlay panel = (VlcOverlay)sender;
-            Debug.Print(string.Format("{0} Mouse down ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), panel.Name));
-            MovePtz(panel, e);
+            VlcOverlay overlay = (VlcOverlay)sender;
+            Debug.Print(string.Format("{0} Mouse down ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.Name));
+            MovePtz(overlay, e);
+        }
+
+        private void VlcOverlay_MouseUp(object sender, MouseEventArgs e)
+        {
+            // Stop PTZ if moving
+            VlcOverlay overlay = (VlcOverlay)sender;
+            Debug.Print(string.Format("{0} Mouse up ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.Name));
+
+            // Check if PTZ and enable PTZ controls if necessary
+            if (overlay.PtzEnabled && overlay.PtzController != null)
+            {
+                Debug.Print(string.Format("{0} Camera stopping ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.LastCamUri));
+                overlay.PtzController.Stop();
+            }
         }
 
         private void MovePtz(VlcOverlay overlay, MouseEventArgs e)
@@ -195,13 +211,8 @@ namespace RTSP_Viewer
                 return;
             }
 
-            //// If a PTZ, use mouse location to determine command to send
-            //string currentURI = MyIni.Read("lastURI", "Viewer_" + overlay.TabIndex);
-            //string ipAddr = Utilities.GetIpAddressFromString(txtUri.Text);
-
             // Check if PTZ and enable PTZ controls if necessary
-            //SDS.Video.Onvif.OnvifPtz ptz = new SDS.Video.Onvif.OnvifPtz(ipAddr, 80); // "127.0.0.1", 8046);
-            if (overlay.PtzEnabled) // ptz.PtzAvailable)
+            if (overlay.PtzEnabled)
             {
                 if (overlay.PtzController == null)
                 {
@@ -219,11 +230,13 @@ namespace RTSP_Viewer
                     {
                         Debug.Print(string.Format("{0} Zoom out", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")));
                         overlay.PtzController.Zoom((float)-0.20);
-                        //ptz.Zoom((float)-0.20);
                     }
+                    System.Threading.Thread.Sleep(25);
+                    overlay.PtzController.Stop();
                 }
                 else
                 {
+                    // Eventually this will need to dynamically change as the mouse is relocated during the operation
                     string ptzCommand = Utilities.GetPtzCommandFromMouse(e.X, e.Y, overlay.Width, overlay.Height);
                     Debug.Print(string.Format("{0} {1}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), ptzCommand));
 
@@ -237,8 +250,8 @@ namespace RTSP_Viewer
                         overlay.PtzController.Tilt((float)-0.25);
                 }
 
-                System.Threading.Thread.Sleep(50);
-                overlay.PtzController.Stop();
+                //System.Threading.Thread.Sleep(50);
+                //overlay.PtzController.Stop();
                 Debug.Print(string.Format("{0} Camera stopped ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.LastCamUri));
             }
         }
