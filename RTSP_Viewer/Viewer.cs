@@ -34,6 +34,8 @@ namespace RTSP_Viewer
         TextBox txtUri = new TextBox() { Tag = "Debug", Visible = false };
         ComboBox cbxViewSelect = new ComboBox() { Tag = "Debug", Visible = false };
 
+        BackgroundWorker[] BgPtzWorker;
+
         public Viewer()
         {
             log4net.Config.XmlConfigurator.Configure(new System.IO.FileInfo("logger.xml"));
@@ -126,11 +128,19 @@ namespace RTSP_Viewer
             vlcOverlay = new VlcOverlay[NumberOfViews];
             string[] vlcMediaOptions = Regex.Split(getIniValue("VlcOptions"), "\\s*,\\s*"); // Split by comma and trim whitespace
 
+            BgPtzWorker = new BackgroundWorker[NumberOfViews];
+
             for (int i = 0; i < NumberOfViews; i++)
             {
+                BgPtzWorker[i] = new BackgroundWorker();
+                BgPtzWorker[i].WorkerReportsProgress = true;
+                BgPtzWorker[i].WorkerSupportsCancellation = true;
+                BgPtzWorker[i].DoWork += BgPtzWorker_DoWork;
+
                 myVlcControl[i] = new VlcControl();
                 vlcOverlay[i] = new VlcOverlay { Name = "VLC Overlay " + i, BackColor = Color.Transparent, Parent = myVlcControl[i], Dock = DockStyle.Fill, TabIndex = i };
                 vlcOverlay[i].MouseEnter += VlcOverlay_MouseEnter;
+                vlcOverlay[i].MouseLeave += VlcOverlay_MouseLeave;
                 vlcOverlay[i].MouseDoubleClick += VlcOverlay_MouseDoubleClick;
                 vlcOverlay[i].MouseClick += VlcOverlay_MouseClick;
                 vlcOverlay[i].MouseMove += VlcOverlay_MouseMove;
@@ -167,6 +177,9 @@ namespace RTSP_Viewer
             // Select control so the mouse wheel event will go to the proper control
             VlcOverlay overlay = (VlcOverlay)sender;
             overlay.Select();
+
+            log.Debug(string.Format("Mouse entered view {0}", overlay.Name));
+
             if (!overlay.PtzEnabled | !myVlcControl[overlay.TabIndex].IsPlaying)
             {
                 // Disable PTZ actions if not playing
@@ -175,39 +188,69 @@ namespace RTSP_Viewer
             }
         }
 
+        private void VlcOverlay_MouseLeave(object sender, EventArgs e)
+        {
+            // This is a terrible way to make sure the PTZ stops - replace with better solution
+            VlcOverlay overlay = (VlcOverlay)sender;
+            log.Info(string.Format("Mouse exited view {0} [NOTE: REPLACE PTZ STOP ON EXIT WITH BETTER SOLUTION]", overlay.Name));
+            PtzStop(overlay);
+        }
+
         private void VlcOverlay_MouseWheel(object sender, MouseEventArgs e)
         {
             VlcOverlay overlay = (VlcOverlay)sender;
             Debug.Print(string.Format("{0} Mouse wheel ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.Name));
-            MovePtz(overlay, e);
+
+            // Use BackgroundWorker to send command to prevent UI lockup
+            if (!BgPtzWorker[overlay.TabIndex].IsBusy)
+            {
+                object[] args = new object[] { overlay, e };
+                BgPtzWorker[overlay.TabIndex].RunWorkerAsync(args);
+            }
+            else
+            {
+                log.Debug(string.Format("Background worker busy.  Ignoring mouse wheel for view {0} [{1}]", overlay.Name, overlay.LastCamUri));
+            }
         }
 
         private void VlcOverlay_MouseDown(object sender, MouseEventArgs e)
         {
             VlcOverlay overlay = (VlcOverlay)sender;
             Debug.Print(string.Format("{0} Mouse down ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.Name));
-            MovePtz(overlay, e);
+            log.Debug(string.Format("Mouse down on view {0}", overlay.Name));
+
+            // Use BackgroundWorker to send command to prevent UI lockup
+            if (!BgPtzWorker[overlay.TabIndex].IsBusy)
+            {
+                object[] args = new object[] { overlay, e };
+                BgPtzWorker[overlay.TabIndex].RunWorkerAsync(args);
+            }            
+            else
+            {
+                log.Debug(string.Format("Background worker busy.  Ignoring mouse down for view {0} [{1}]", overlay.Name, overlay.LastCamUri));
+            }
         }
 
         private void VlcOverlay_MouseUp(object sender, MouseEventArgs e)
         {
-            // Stop PTZ if moving
             VlcOverlay overlay = (VlcOverlay)sender;
-            Debug.Print(string.Format("{0} Mouse up ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.Name));
-
-            // Check if PTZ and enable PTZ controls if necessary
-            if (overlay.PtzEnabled && overlay.PtzController != null)
-            {
-                Debug.Print(string.Format("{0} Camera stopping ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.LastCamUri));
-                overlay.PtzController.Stop();
-            }
+            
+            // Attempt to prevent unstopping PTZ (stop send before PTZ?)
+            BgPtzWorker[overlay.TabIndex].CancelAsync();
+            PtzStop(overlay);
         }
 
-        private void MovePtz(VlcOverlay overlay, MouseEventArgs e)
+        private void BgPtzWorker_DoWork(object sender, DoWorkEventArgs e)
         {
+            object[] args = e.Argument as object[];
+
+            VlcOverlay overlay = (VlcOverlay)args[0];
+            MouseEventArgs mouseArgs = (MouseEventArgs)args[1];
+            
             if (!myVlcControl[overlay.TabIndex].IsPlaying)
             {
                 Debug.Print(string.Format("{0} VLC not playing.  No PTZ command sent.", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")));
+                //log.Debug(string.Format("VLC not playing.  No PTZ command sent to view {0}", overlay.Name));
                 return;
             }
 
@@ -216,29 +259,33 @@ namespace RTSP_Viewer
             {
                 if (overlay.PtzController == null)
                 {
+                    log.Warn(string.Format("No PtzController configured for camera stream [{0}]", overlay.LastCamUri));
                     throw new Exception(string.Format("No PtzController configured for camera stream [{0}]", overlay.LastCamUri));
                 }
 
-                if (e.Delta != 0)
+                if (mouseArgs.Delta != 0)
                 {
-                    if (e.Delta > 0)
+                    if (mouseArgs.Delta > 0)
                     {
                         Debug.Print(string.Format("{0} Zoom in", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")));
                         overlay.PtzController.Zoom((float)0.20);
                     }
-                    else if (e.Delta < 0)
+                    else if (mouseArgs.Delta < 0)
                     {
                         Debug.Print(string.Format("{0} Zoom out", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")));
                         overlay.PtzController.Zoom((float)-0.20);
                     }
                     System.Threading.Thread.Sleep(25);
                     overlay.PtzController.Stop();
+                    log.Debug(string.Format("Camera Zoom stopped on view {0} [{1}]", overlay.Name, overlay.LastCamUri));
+                    Debug.Print(string.Format("{0} Camera stopped ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.LastCamUri));
                 }
                 else
                 {
                     // Eventually this will need to dynamically change as the mouse is relocated during the operation
-                    string ptzCommand = Utilities.GetPtzCommandFromMouse(e.X, e.Y, overlay.Width, overlay.Height);
+                    string ptzCommand = Utilities.GetPtzCommandFromMouse(mouseArgs.X, mouseArgs.Y, overlay.Width, overlay.Height);
                     Debug.Print(string.Format("{0} {1}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), ptzCommand));
+                    log.Debug(string.Format("Sending PTZ Command [{0}] on view {1} [{2}]", ptzCommand, overlay.Name, overlay.LastCamUri));
 
                     if (ptzCommand == "Pan Right")
                         overlay.PtzController.Pan((float)0.25);
@@ -249,16 +296,28 @@ namespace RTSP_Viewer
                     else if (ptzCommand == "Tilt Down")
                         overlay.PtzController.Tilt((float)-0.25);
                 }
-
-                //System.Threading.Thread.Sleep(50);
-                //overlay.PtzController.Stop();
-                Debug.Print(string.Format("{0} Camera stopped ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.LastCamUri));
             }
         }
 
+        private void PtzStop(VlcOverlay overlay)
+        {
+            // Stop PTZ if moving
+            Debug.Print(string.Format("{0} Stop PTZ if necessary ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.Name));
+
+            // Check if PTZ and enable PTZ controls if necessary
+            if (overlay.PtzEnabled && overlay.PtzController != null)
+            {
+                log.Debug(string.Format("Camera stopping on view {0} [{1}]", overlay.Name, overlay.LastCamUri));
+                Debug.Print(string.Format("Camera stopping on view {0} [{1}]", overlay.Name, overlay.LastCamUri));
+                overlay.PtzController.Stop();
+            }
+        }
+        
         private void VlcOverlay_MouseMove(object sender, MouseEventArgs e)
         {
             VlcOverlay vlcOverlay = (VlcOverlay)sender;
+            if (e.Button != MouseButtons.None)
+                Debug.Print(string.Format("Mouse Move with button {0} pressed @ {1}, {2}", e.Button, e.X, e.Y));
 
             int x = vlcOverlay.Size.Width / 2;
             int y = vlcOverlay.Size.Height / 2;
@@ -321,27 +380,6 @@ namespace RTSP_Viewer
                 {
                     this.Cursor = Cursors.PanSE;
                 }
-
-                //if (angle >= -45 && angle < 45)
-                //{
-                //    function = "Pan Right";
-                //    this.Cursor = Cursors.PanEast;
-                //}
-                //else if (angle >= 45 && angle < 135)
-                //{
-                //    function = "Tilt Up";
-                //    this.Cursor = Cursors.PanNorth;
-                //}
-                //else if (angle >= 135 || angle < -135)
-                //{
-                //    function = "Pan Left";
-                //    this.Cursor = Cursors.PanWest;
-                //}
-                //else if (angle >= -135 && angle < -45)
-                //{
-                //    function = "Tilt Down";
-                //    this.Cursor = Cursors.PanSouth;
-                //}
             }
 
             Invoke((Action)(() => { vlcOverlay.Controls["Status"].Text = string.Format("{0}\nMouse @ ({1}, {2})\nPolar: {3:0.#}@{4:0.##}\nCart.: {5},{6}\nPTZ: {7}", quadrant, e.Location.X, e.Location.Y, radius, angle, deltaX, deltaY, function); vlcOverlay.Controls["Status"].Visible = true; }));
