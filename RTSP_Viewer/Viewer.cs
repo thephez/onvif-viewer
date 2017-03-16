@@ -11,6 +11,7 @@ using log4net;
 using System.Text.RegularExpressions;
 using System.IO;
 using System.ComponentModel;
+using SDS.Video.Onvif;
 
 namespace RTSP_Viewer
 {
@@ -209,7 +210,7 @@ namespace RTSP_Viewer
             }
             else
             {
-                log.Debug(string.Format("Background worker busy.  Ignoring mouse wheel for view {0} [{1}]", overlay.Name, overlay.LastCamUri));
+                //log.Debug(string.Format("Background worker busy.  Ignoring mouse wheel for view {0} [{1}]", overlay.Name, overlay.LastCamUri));
             }
         }
 
@@ -283,18 +284,30 @@ namespace RTSP_Viewer
                 else
                 {
                     // Eventually this will need to dynamically change as the mouse is relocated during the operation
-                    string ptzCommand = Utilities.GetPtzCommandFromMouse(mouseArgs.X, mouseArgs.Y, overlay.Width, overlay.Height);
+                    PtzCommand ptzCommand = Utilities.GetPtzCommandFromMouse(mouseArgs.X, mouseArgs.Y, overlay.Width, overlay.Height);
                     Debug.Print(string.Format("{0} {1}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), ptzCommand));
                     log.Debug(string.Format("Sending PTZ Command [{0}] on view {1} [{2}]", ptzCommand, overlay.Name, overlay.LastCamUri));
 
-                    if (ptzCommand == "Pan Right")
-                        overlay.PtzController.Pan((float)0.25);
-                    else if (ptzCommand == "Pan Left")
-                        overlay.PtzController.Pan((float)-0.25);
-                    else if (ptzCommand == "Tilt Up")
-                        overlay.PtzController.Tilt((float)0.25);
-                    else if (ptzCommand == "Tilt Down")
-                        overlay.PtzController.Tilt((float)-0.25);
+                    float panSpeed = (float)Math.Abs(mouseArgs.X - (overlay.Width / 2)) / (float)(overlay.Width / 2);
+                    float tiltSpeed = (float)Math.Abs(mouseArgs.Y - (overlay.Height / 2)) / (float)(overlay.Height / 2);
+
+                    if (ptzCommand == PtzCommand.PanEast)
+                        overlay.PtzController.Pan(panSpeed);
+                    else if (ptzCommand == PtzCommand.PanTiltNE)
+                        overlay.PtzController.PanTilt(panSpeed, tiltSpeed);
+                    else if (ptzCommand == PtzCommand.PanWest)
+                        overlay.PtzController.Pan(-panSpeed);
+                    else if (ptzCommand == PtzCommand.PanTiltNW)
+                        overlay.PtzController.PanTilt(-panSpeed, tiltSpeed);
+
+                    else if (ptzCommand == PtzCommand.TiltNorth)
+                        overlay.PtzController.Tilt(tiltSpeed); // (float)0.25);
+                    else if (ptzCommand == PtzCommand.PanTiltSW)
+                        overlay.PtzController.PanTilt(-panSpeed, -tiltSpeed);
+                    else if (ptzCommand == PtzCommand.TiltSouth)
+                        overlay.PtzController.Tilt(-tiltSpeed); // (float)-0.25);
+                    else if (ptzCommand == PtzCommand.PanTiltSE)
+                        overlay.PtzController.PanTilt(panSpeed, -tiltSpeed);
                 }
             }
         }

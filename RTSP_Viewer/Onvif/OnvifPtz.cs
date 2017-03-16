@@ -3,6 +3,20 @@ using System;
 
 namespace SDS.Video.Onvif
 {
+    public enum PtzCommand
+    {
+        PanEast,
+        PanTiltNE,
+        TiltNorth,
+        PanTiltNW,
+        PanWest,
+        PanTiltSW,
+        TiltSouth,
+        PanTiltSE,
+        ZoomIn,
+        ZoomOut
+    }
+
     public class OnvifPtz
     {
         private System.Net.IPAddress IP;
@@ -31,7 +45,6 @@ namespace SDS.Video.Onvif
 
             PtzClient = OnvifServices.GetOnvifPTZClient(IP.ToString(), Port, User, Password);
             MediaClient = OnvifServices.GetOnvifMediaClient(IP.ToString(), Port, User, Password);
-            //IsPtz();
         }
 
         /// <summary>
@@ -92,6 +105,25 @@ namespace SDS.Video.Onvif
 
             PTZSpeed velocity = new PTZSpeed();
             velocity.Zoom = new Vector1D() { x = speed * ptzConfigurationOptions.Spaces.ContinuousZoomVelocitySpace[0].XRange.Max };
+
+            PtzClient.ContinuousMove(mediaProfile.token, velocity, null);
+        }
+
+        /// <summary>
+        /// Combined Pan and Tilt of the camera (uses the first media profile that is PTZ capable)
+        /// </summary>
+        /// <param name="panSpeed">Percent of max speed to move the camera (0.01-1.00)</param>
+        /// <param name="tiltSpeed">Percent of max speed to move the camera (0.01-1.00)</param>
+        public void PanTilt(float panSpeed, float tiltSpeed)
+        {
+            RTSP_Viewer.OnvifMediaServiceReference.Profile mediaProfile = GetMediaProfile();
+            PTZConfigurationOptions ptzConfigurationOptions = PtzClient.GetConfigurationOptions(mediaProfile.PTZConfiguration.token);
+
+            PTZSpeed velocity = new PTZSpeed();
+            velocity.PanTilt = new Vector2D() {
+                x = panSpeed * ptzConfigurationOptions.Spaces.ContinuousPanTiltVelocitySpace[0].XRange.Max,
+                y = tiltSpeed * ptzConfigurationOptions.Spaces.ContinuousPanTiltVelocitySpace[0].YRange.Max
+            };
 
             PtzClient.ContinuousMove(mediaProfile.token, velocity, null);
         }
