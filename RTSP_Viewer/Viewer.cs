@@ -11,7 +11,6 @@ using log4net;
 using System.Text.RegularExpressions;
 using System.IO;
 using System.ComponentModel;
-using SDS.Video.Onvif;
 
 namespace RTSP_Viewer
 {
@@ -283,31 +282,16 @@ namespace RTSP_Viewer
                 }
                 else
                 {
-                    // Eventually this will need to dynamically change as the mouse is relocated during the operation
-                    PtzCommand ptzCommand = Utilities.GetPtzCommandFromMouse(mouseArgs.X, mouseArgs.Y, overlay.Width, overlay.Height);
-                    Debug.Print(string.Format("{0} {1}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), ptzCommand));
-                    log.Debug(string.Format("Sending PTZ Command [{0}] on view {1} [{2}]", ptzCommand, overlay.Name, overlay.LastCamUri));
+                    // Calculate the speed Pan and Tilt using the mouse location
+                    // Uses the center of the control as point 0, 0 (i.e the center)
+                    // A negative pan speed moves the camera to the left, positive to the right
+                    // A negative tilt speed moves the camera down, positive moves it up
+                    // The speed is a value between 0 and 1 (represents a percent of max speed)
+                    float panSpeed = (float)(mouseArgs.X - (overlay.Width / 2)) / (float)(overlay.Width / 2);
+                    float tiltSpeed = (float)((overlay.Height / 2) - mouseArgs.Y) / (float)(overlay.Height / 2);
 
-                    float panSpeed = (float)Math.Abs(mouseArgs.X - (overlay.Width / 2)) / (float)(overlay.Width / 2);
-                    float tiltSpeed = (float)Math.Abs(mouseArgs.Y - (overlay.Height / 2)) / (float)(overlay.Height / 2);
-
-                    if (ptzCommand == PtzCommand.PanEast)
-                        overlay.PtzController.Pan(panSpeed);
-                    else if (ptzCommand == PtzCommand.PanTiltNE)
-                        overlay.PtzController.PanTilt(panSpeed, tiltSpeed);
-                    else if (ptzCommand == PtzCommand.PanWest)
-                        overlay.PtzController.Pan(-panSpeed);
-                    else if (ptzCommand == PtzCommand.PanTiltNW)
-                        overlay.PtzController.PanTilt(-panSpeed, tiltSpeed);
-
-                    else if (ptzCommand == PtzCommand.TiltNorth)
-                        overlay.PtzController.Tilt(tiltSpeed); // (float)0.25);
-                    else if (ptzCommand == PtzCommand.PanTiltSW)
-                        overlay.PtzController.PanTilt(-panSpeed, -tiltSpeed);
-                    else if (ptzCommand == PtzCommand.TiltSouth)
-                        overlay.PtzController.Tilt(-tiltSpeed); // (float)-0.25);
-                    else if (ptzCommand == PtzCommand.PanTiltSE)
-                        overlay.PtzController.PanTilt(panSpeed, -tiltSpeed);
+                    log.Debug(string.Format("Sending PTZ Command to move [Pan Speed: {0}, Tilt Speed: {1}] on view {2} [{3}]", panSpeed, tiltSpeed, overlay.Name, overlay.LastCamUri));
+                    overlay.PtzController.PanTilt(panSpeed, tiltSpeed);
                 }
             }
         }
@@ -328,18 +312,18 @@ namespace RTSP_Viewer
         
         private void VlcOverlay_MouseMove(object sender, MouseEventArgs e)
         {
-            VlcOverlay vlcOverlay = (VlcOverlay)sender;
-            if (e.Button != MouseButtons.None)
-                Debug.Print(string.Format("Mouse Move with button {0} pressed @ {1}, {2}", e.Button, e.X, e.Y));
+            VlcOverlay overlay = (VlcOverlay)sender;
 
-            int x = vlcOverlay.Size.Width / 2;
-            int y = vlcOverlay.Size.Height / 2;
-            int mouseX = e.X;
-            int mouseY = e.Y;
+            int minMovePercent = 2;
+            if (overlay.LastMouseArgs == null)
+                overlay.LastMouseArgs = e;
+
+            int x = overlay.Size.Width / 2;
+            int y = overlay.Size.Height / 2;
             string quadrant = "";
 
-            int deltaX = mouseX - x;
-            int deltaY = y - mouseY;
+            int deltaX = e.X - x;
+            int deltaY = y - e.Y;
 
             float radius = (float)Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
             double angle = Math.Atan2(deltaY, deltaX) * (180 / Math.PI);
@@ -354,48 +338,68 @@ namespace RTSP_Viewer
             else
                 quadrant += " Left";
 
-            string function = "";
-            if (vlcOverlay.PtzEnabled)
+            if (overlay.PtzEnabled)
+                SetPtzCursor(angle, deltaX, deltaY);
+
+            Invoke((Action)(() => { overlay.Controls["Status"].Text = string.Format("{0}\nMouse @ ({1}, {2})\nPolar: {3:0.#}@{4:0.##}\nCart.: {5},{6}", quadrant, e.Location.X, e.Location.Y, radius, angle, deltaX, deltaY); overlay.Controls["Status"].Visible = true; }));
+
+            // Change PTZ command based on mouse position (only if left button down)
+            if (e.Button == MouseButtons.Left)
             {
-                if (angle >= -22.5 && angle < 22.5)
+                //Debug.Print(string.Format("Mouse Move with button {0} pressed @ {1}, {2}", e.Button, e.X, e.Y));
+
+                if (Math.Abs((overlay.LastMouseArgs.X - e.X)) > (overlay.Width * ((float)minMovePercent / 100)))
                 {
-                    function = "Pan Right";
-                    this.Cursor = Cursors.PanEast;
+                    Debug.Print(string.Format("{0}           {1}", Math.Abs((overlay.LastMouseArgs.X - e.X)), (overlay.Width * ((float)minMovePercent / 100))));
+                    Debug.Print(string.Format("Mouse moved horizontally by more than the minimum percentage [{0}] to [{1}, {2}]", minMovePercent, e.X, e.Y));
+                    //overlay.LastMouseArgs = e;
                 }
-                else if (angle >= 22.5 && angle < 67.5)
+                else if (Math.Abs((overlay.LastMouseArgs.Y - e.Y)) > (overlay.Height * ((float)minMovePercent / 100)))
                 {
-                    this.Cursor = Cursors.PanNE;
+                    Debug.Print(string.Format("{0}           {1}", Math.Abs((overlay.LastMouseArgs.Y - e.Y)), (overlay.Height * ((float)minMovePercent / 100))));
+                    Debug.Print(string.Format("Mouse moved vertically by more than the minimum percentage [{0}] to [{1}, {2}]", minMovePercent, e.X, e.Y));
+                    //overlay.LastMouseArgs = e;
                 }
-                else if (angle >= 67.5 && angle < 112.5)
+                else
                 {
-                    function = "Tilt Up";
-                    this.Cursor = Cursors.PanNorth;
+                    return;
                 }
-                else if (angle >= 112.5 && angle < 157.5)
+
+                // Use BackgroundWorker to send command to prevent UI lockup
+                if (!BgPtzWorker[overlay.TabIndex].IsBusy)
                 {
-                    this.Cursor = Cursors.PanNW;
+                    // Only store new mouse position if a command is successfully sent
+                    // Otherwise an attempt to send the command should be made the next time the mouse moves
+                    overlay.LastMouseArgs = e;
+                    object[] args = new object[] { overlay, e };
+                    BgPtzWorker[overlay.TabIndex].RunWorkerAsync(args);
                 }
-                else if (angle >= 157.5 || angle < -157.5)
+                else
                 {
-                    function = "Pan Left";
-                    this.Cursor = Cursors.PanWest;
-                }
-                else if (angle >= -157.5 && angle < -112.5)
-                {
-                    this.Cursor = Cursors.PanSW;
-                }
-                else if (angle >= -112.5 && angle < -67.5)
-                {
-                    function = "Tilt Down";
-                    this.Cursor = Cursors.PanSouth;
-                }
-                else if (angle >= -67.5 && angle < -22.5)
-                {
-                    this.Cursor = Cursors.PanSE;
+                    //log.Debug(string.Format("Background worker busy.  Ignoring mouse down for view {0} [{1}]", overlay.Name, overlay.LastCamUri));
                 }
             }
+        }
 
-            Invoke((Action)(() => { vlcOverlay.Controls["Status"].Text = string.Format("{0}\nMouse @ ({1}, {2})\nPolar: {3:0.#}@{4:0.##}\nCart.: {5},{6}\nPTZ: {7}", quadrant, e.Location.X, e.Location.Y, radius, angle, deltaX, deltaY, function); vlcOverlay.Controls["Status"].Visible = true; }));
+        private void SetPtzCursor(double angle, int x, int y)
+        {
+            if (angle >= -22.5 && angle < 22.5)
+                this.Cursor = Cursors.PanEast;
+            else if (angle >= 22.5 && angle < 67.5)
+                this.Cursor = Cursors.PanNE;
+            else if (angle >= 67.5 && angle < 112.5)
+                this.Cursor = Cursors.PanNorth;
+            else if (angle >= 112.5 && angle < 157.5)
+                this.Cursor = Cursors.PanNW;
+
+            else if (angle >= 157.5 || angle < -157.5)
+                this.Cursor = Cursors.PanWest;
+            else if (angle >= -157.5 && angle < -112.5)
+                this.Cursor = Cursors.PanSW;
+            else if (angle >= -112.5 && angle < -67.5)
+                this.Cursor = Cursors.PanSouth;
+            else if (angle >= -67.5 && angle < -22.5)
+                this.Cursor = Cursors.PanSE;
         }
 
         private void InitDebugControls()
@@ -836,6 +840,11 @@ namespace RTSP_Viewer
         public bool PtzEnabled {get; set; } = false;
         public int LastCamNum { get; set; }
         public string LastCamUri { get; set; }
+
+        /// <summary>
+        /// Used to store the mouse location when the last command was sent
+        /// </summary>
+        public MouseEventArgs LastMouseArgs { get; set; }
 
         /// <summary>
         /// Used to send Pan, Tilt, or Zoom commands to the displayed camera

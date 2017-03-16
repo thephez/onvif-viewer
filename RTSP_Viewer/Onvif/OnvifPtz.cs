@@ -3,19 +3,19 @@ using System;
 
 namespace SDS.Video.Onvif
 {
-    public enum PtzCommand
-    {
-        PanEast,
-        PanTiltNE,
-        TiltNorth,
-        PanTiltNW,
-        PanWest,
-        PanTiltSW,
-        TiltSouth,
-        PanTiltSE,
-        ZoomIn,
-        ZoomOut
-    }
+    //public enum PtzCommand
+    //{
+    //    PanEast,
+    //    PanTiltNE,
+    //    TiltNorth,
+    //    PanTiltNW,
+    //    PanWest,
+    //    PanTiltSW,
+    //    TiltSouth,
+    //    PanTiltSE,
+    //    ZoomIn,
+    //    ZoomOut
+    //}
 
     public class OnvifPtz
     {
