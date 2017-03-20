@@ -178,222 +178,63 @@ namespace RTSP_Viewer
             setSizes();
         }
 
-        private void VlcOverlay_MouseEnter(object sender, EventArgs e)
+        /// <summary>
+        /// Creates the status object displayed in the lower right corner which
+        /// shows the currently selected View and allows switching between views when a view is full screen
+        /// </summary>
+        private void InitViewerStatus()
         {
-            // Select control so the mouse wheel event will go to the proper control
-            VlcOverlay overlay = (VlcOverlay)sender;
-            overlay.Select();
-
-            log.Debug(string.Format("Mouse entered view {0}", overlay.Name));
-
-            if (!overlay.PtzEnabled | !myVlcControl[overlay.TabIndex].IsPlaying)
+            // Only need this if showing more than 1 viewer
+            if (NumberOfViews > 1)
             {
-                // Disable PTZ actions if not playing
-                overlay.PtzEnabled = false;
-                this.Cursor = Cursors.Default;
-            }
-        }
+                statusBg.Controls.Clear();
+                statusBg.BackColor = Color.Black;
+                statusBg.Size = new Size(60, 37);
+                statusBg.Location = new Point(this.ClientSize.Width - statusBg.Width - 10, this.ClientSize.Height - statusBg.Height - 10);
+                statusBg.Anchor = (AnchorStyles.Bottom | AnchorStyles.Right);
 
-        private void VlcOverlay_MouseLeave(object sender, EventArgs e)
-        {
-            // This is a terrible way to make sure the PTZ stops - replace with better solution
-            VlcOverlay overlay = (VlcOverlay)sender;
-            log.Info(string.Format("Mouse exited view {0} [NOTE: REPLACE PTZ STOP ON EXIT WITH BETTER SOLUTION]", overlay.Name));
-            PtzStop(overlay);
-        }
+                Panel[] viewer = new Panel[NumberOfViews];
 
-        private void VlcOverlay_MouseWheel(object sender, MouseEventArgs e)
-        {
-            VlcOverlay overlay = (VlcOverlay)sender;
-            Debug.Print(string.Format("{0} Mouse wheel ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.Name));
+                Point[] displayPoint = Utilities.CalculatePointLocations(NumberOfViews, statusBg.Width, statusBg.Height);
+                Size displaySize = Utilities.CalculateItemSizes(NumberOfViews, statusBg.Size.Width, statusBg.Size.Height, 1); // ViewPadding);
 
-            // Use BackgroundWorker to send command to prevent UI lockup
-            if (!BgPtzWorker[overlay.TabIndex].IsBusy)
-            {
-                object[] args = new object[] { overlay, e };
-                BgPtzWorker[overlay.TabIndex].RunWorkerAsync(args);
+                for (int i = 0; i < NumberOfViews; i++)
+                {
+                    viewer[i] = new Panel();
+                    viewer[i].Location = displayPoint[i];
+                    viewer[i].Size = displaySize;
+                    viewer[i].BackColor = Color.Gainsboro;
+                    viewer[i].Name = string.Format("Viewer Status {0}", i);
+                    viewer[i].TabIndex = i;
+                    viewer[i].MouseClick += ViewerStatus_MouseClick;
+                    statusBg.Controls.Add(viewer[i]);
+                }
+
+                statusBg.Visible = true;
+                this.Controls.Add(statusBg);
+                statusBg.BringToFront();
             }
             else
             {
-                //log.Debug(string.Format("Background worker busy.  Ignoring mouse wheel for view {0} [{1}]", overlay.Name, overlay.LastCamUri));
+                statusBg.Visible = false;
             }
-        }
-
-        private void VlcOverlay_MouseDown(object sender, MouseEventArgs e)
-        {
-            VlcOverlay overlay = (VlcOverlay)sender;
-            Debug.Print(string.Format("{0} Mouse down ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.Name));
-            log.Debug(string.Format("Mouse down on view {0}", overlay.Name));
-
-            // Use BackgroundWorker to send command to prevent UI lockup
-            if (!BgPtzWorker[overlay.TabIndex].IsBusy)
-            {
-                object[] args = new object[] { overlay, e };
-                BgPtzWorker[overlay.TabIndex].RunWorkerAsync(args);
-            }            
-            else
-            {
-                log.Debug(string.Format("Background worker busy.  Ignoring mouse down for view {0} [{1}]", overlay.Name, overlay.LastCamUri));
-            }
-        }
-
-        private void VlcOverlay_MouseUp(object sender, MouseEventArgs e)
-        {
-            VlcOverlay overlay = (VlcOverlay)sender;
-            
-            // Attempt to prevent unstopping PTZ (stop send before PTZ?)
-            BgPtzWorker[overlay.TabIndex].CancelAsync();
-            PtzStop(overlay);
         }
 
         /// <summary>
-        /// Sends PTZ commands to the relevant camera
+        /// Update the viewer status object to set the active view
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e">Object containing the relevant Vlc View overlay and the mouse event args</param>
-        private void BgPtzWorker_DoWork(object sender, DoWorkEventArgs e)
+        /// <param name="activeView">Vlc View number to make active</param>
+        private void SetViewerStatus(int activeView)
         {
-            object[] args = e.Argument as object[];
-
-            VlcOverlay overlay = (VlcOverlay)args[0];
-            MouseEventArgs mouseArgs = (MouseEventArgs)args[1];
-            
-            if (!myVlcControl[overlay.TabIndex].IsPlaying)
+            foreach (Control c in statusBg.Controls)
             {
-                Debug.Print(string.Format("{0} VLC not playing.  No PTZ command sent.", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")));
-                //log.Debug(string.Format("VLC not playing.  No PTZ command sent to view {0}", overlay.Name));
-                return;
-            }
-
-            // Check if PTZ and enable PTZ controls if necessary
-            if (overlay.PtzEnabled)
-            {
-                if (overlay.PtzController == null)
-                {
-                    log.Warn(string.Format("No PtzController configured for camera stream [{0}]", overlay.LastCamUri));
-                    throw new Exception(string.Format("No PtzController configured for camera stream [{0}]", overlay.LastCamUri));
-                }
-
-                if (mouseArgs.Delta != 0)
-                {
-                    if (mouseArgs.Delta > 0)
-                    {
-                        Debug.Print(string.Format("{0} Zoom in", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")));
-                        overlay.PtzController.Zoom((float)0.20);
-                    }
-                    else if (mouseArgs.Delta < 0)
-                    {
-                        Debug.Print(string.Format("{0} Zoom out", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")));
-                        overlay.PtzController.Zoom((float)-0.20);
-                    }
-
-                    // Zoom for the sleep duration and then stop (should be a better way to do this)
-                    System.Threading.Thread.Sleep(25);
-                    overlay.PtzController.Stop();
-                    log.Debug(string.Format("Camera Zoom stopped on view {0} [{1}]", overlay.Name, overlay.LastCamUri));
-                    Debug.Print(string.Format("{0} Camera stopped ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.LastCamUri));
-                }
+                if (c.Name == string.Format("Viewer Status {0}", activeView))
+                    c.BackColor = Color.Yellow;
                 else
-                {
-                    // Calculate the speed Pan and Tilt using the mouse location
-                    // Uses the center of the control as point 0, 0 (i.e the center)
-                    // A negative pan speed moves the camera to the left, positive to the right
-                    // A negative tilt speed moves the camera down, positive moves it up
-                    // The speed is a value between 0 and 1 (represents a percent of max speed)
-                    float panSpeed = (float)(mouseArgs.X - (overlay.Width / 2)) / (float)(overlay.Width / 2);
-                    float tiltSpeed = (float)((overlay.Height / 2) - mouseArgs.Y) / (float)(overlay.Height / 2);
-
-                    log.Debug(string.Format("Sending PTZ Command to move [Pan Speed: {0}, Tilt Speed: {1}] on view {2} [{3}]", panSpeed, tiltSpeed, overlay.Name, overlay.LastCamUri));
-                    overlay.PtzController.PanTilt(panSpeed, tiltSpeed);
-                }
-            }
-        }
-
-        private void PtzStop(VlcOverlay overlay)
-        {
-            // Stop PTZ if moving
-            Debug.Print(string.Format("{0} Stop PTZ if necessary ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.Name));
-
-            // Check if PTZ and enable PTZ controls if necessary
-            if (overlay.PtzEnabled && overlay.PtzController != null)
-            {
-                log.Debug(string.Format("Camera stopping on view {0} [{1}]", overlay.Name, overlay.LastCamUri));
-                Debug.Print(string.Format("Camera stopping on view {0} [{1}]", overlay.Name, overlay.LastCamUri));
-                overlay.PtzController.Stop();
+                    c.BackColor = Color.Gainsboro;
             }
         }
         
-        private void VlcOverlay_MouseMove(object sender, MouseEventArgs e)
-        {
-            VlcOverlay overlay = (VlcOverlay)sender;
-
-            int minMovePercent = 2;
-            if (overlay.LastMouseArgs == null)
-                overlay.LastMouseArgs = e;
-
-            int x = overlay.Size.Width / 2;
-            int y = overlay.Size.Height / 2;
-            string quadrant = "";
-
-            int deltaX = e.X - x;
-            int deltaY = y - e.Y;
-
-            float radius = (float)Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
-            double angle = Math.Atan2(deltaY, deltaX) * (180 / Math.PI);
-
-            if (deltaY >= 0)
-                quadrant = "Top";
-            else
-                quadrant = "Bottom";
-
-            if (deltaX >= 0)
-                quadrant += " Right";
-            else
-                quadrant += " Left";
-
-            if (overlay.PtzEnabled)
-                this.Cursor = Utilities.GetPtzCursor(angle);
-
-            Invoke((Action)(() => { overlay.Controls["Status"].Text = string.Format("{0}\nMouse @ ({1}, {2})\nPolar: {3:0.#}@{4:0.##}\nCart.: {5},{6}", quadrant, e.Location.X, e.Location.Y, radius, angle, deltaX, deltaY); overlay.Controls["Status"].Visible = true; }));
-
-            // Change PTZ command based on mouse position (only if left button down)
-            if (e.Button == MouseButtons.Left)
-            {
-                //Debug.Print(string.Format("Mouse Move with button {0} pressed @ {1}, {2}", e.Button, e.X, e.Y));
-
-                if (Math.Abs((overlay.LastMouseArgs.X - e.X)) > (overlay.Width * ((float)minMovePercent / 100)))
-                {
-                    Debug.Print(string.Format("{0}           {1}", Math.Abs((overlay.LastMouseArgs.X - e.X)), (overlay.Width * ((float)minMovePercent / 100))));
-                    Debug.Print(string.Format("Mouse moved horizontally by more than the minimum percentage [{0}] to [{1}, {2}]", minMovePercent, e.X, e.Y));
-                    //overlay.LastMouseArgs = e;
-                }
-                else if (Math.Abs((overlay.LastMouseArgs.Y - e.Y)) > (overlay.Height * ((float)minMovePercent / 100)))
-                {
-                    Debug.Print(string.Format("{0}           {1}", Math.Abs((overlay.LastMouseArgs.Y - e.Y)), (overlay.Height * ((float)minMovePercent / 100))));
-                    Debug.Print(string.Format("Mouse moved vertically by more than the minimum percentage [{0}] to [{1}, {2}]", minMovePercent, e.X, e.Y));
-                    //overlay.LastMouseArgs = e;
-                }
-                else
-                {
-                    return;
-                }
-
-                // Use BackgroundWorker to send command to prevent UI lockup
-                if (!BgPtzWorker[overlay.TabIndex].IsBusy)
-                {
-                    // Only store new mouse position if a command is successfully sent
-                    // Otherwise an attempt to send the command should be made the next time the mouse moves
-                    overlay.LastMouseArgs = e;
-                    object[] args = new object[] { overlay, e };
-                    BgPtzWorker[overlay.TabIndex].RunWorkerAsync(args);
-                }
-                else
-                {
-                    //log.Debug(string.Format("Background worker busy.  Ignoring mouse down for view {0} [{1}]", overlay.Name, overlay.LastCamUri));
-                }
-            }
-        }
-
         private void InitDebugControls()
         {
             txtUri.Text = "rtsp://127.0.0.1:554/rtsp_tunnel?h26x=4&line=1&inst=1";
@@ -566,6 +407,62 @@ namespace RTSP_Viewer
                 throw;
             }
         }
+        
+        private void PtzStop(VlcOverlay overlay)
+        {
+            // Stop PTZ if moving
+            Debug.Print(string.Format("{0} Stop PTZ if necessary ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.Name));
+
+            // Check if PTZ and enable PTZ controls if necessary
+            if (overlay.PtzEnabled && overlay.PtzController != null)
+            {
+                log.Debug(string.Format("Camera stopping on view {0} [{1}]", overlay.Name, overlay.LastCamUri));
+                Debug.Print(string.Format("Camera stopping on view {0} [{1}]", overlay.Name, overlay.LastCamUri));
+                overlay.PtzController.Stop();
+            }
+        }
+
+        private void SetVlcFullView(int viewerIndex)
+        {
+            log.Info(string.Format("Display full screen layout (View #{0})", viewerIndex));
+            foreach (VlcControl vlc in myVlcControl)
+            {
+                if (vlc.TabIndex == viewerIndex)
+                {
+                    VlcViewer.SetVlcFullView(this, vlc);
+                    statusBg.Visible = true;
+                    statusBg.BringToFront();
+                    SetViewerStatus(viewerIndex);
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Read a key value from an Ini file
+        /// </summary>
+        /// <param name="key"></param>
+        /// <returns></returns>
+        private string getIniValue(string key)
+        {
+            try
+            {
+                var value = MyIni.Read(key);
+
+                if (!MyIni.KeyExists(key))
+                {
+                    // This guarantees that an Ini file will be created if it doesn't exist
+                    MyIni.Write(key, value);
+                }
+
+                return value;
+            }
+            catch
+            {
+                log.Warn(string.Format("Error reading value for ini key [{0}]", key));
+                throw new Exception(string.Format("Error reading value for ini key [{0}]", key));
+            }
+        }
 
         private void PlayBtn_Click(object sender, EventArgs e)
         {
@@ -628,18 +525,204 @@ namespace RTSP_Viewer
             this.ResumeLayout();
         }
 
-        private void SetVlcFullView(int viewerIndex)
+        private void VlcOverlay_MouseEnter(object sender, EventArgs e)
         {
-            log.Info(string.Format("Display full screen layout (View #{0})", viewerIndex));
-            foreach (VlcControl vlc in myVlcControl)
+            // Select control so the mouse wheel event will go to the proper control
+            VlcOverlay overlay = (VlcOverlay)sender;
+            overlay.Select();
+
+            log.Debug(string.Format("Mouse entered view {0}", overlay.Name));
+
+            if (!overlay.PtzEnabled | !myVlcControl[overlay.TabIndex].IsPlaying)
             {
-                if (vlc.TabIndex == viewerIndex)
+                // Disable PTZ actions if not playing
+                overlay.PtzEnabled = false;
+                this.Cursor = Cursors.Default;
+            }
+        }
+
+        private void VlcOverlay_MouseLeave(object sender, EventArgs e)
+        {
+            // This is a terrible way to make sure the PTZ stops - replace with better solution
+            VlcOverlay overlay = (VlcOverlay)sender;
+            log.Info(string.Format("Mouse exited view {0} [NOTE: REPLACE PTZ STOP ON EXIT WITH BETTER SOLUTION]", overlay.Name));
+            PtzStop(overlay);
+        }
+
+        private void VlcOverlay_MouseWheel(object sender, MouseEventArgs e)
+        {
+            VlcOverlay overlay = (VlcOverlay)sender;
+            Debug.Print(string.Format("{0} Mouse wheel ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.Name));
+
+            // Use BackgroundWorker to send command to prevent UI lockup
+            if (!BgPtzWorker[overlay.TabIndex].IsBusy)
+            {
+                object[] args = new object[] { overlay, e };
+                BgPtzWorker[overlay.TabIndex].RunWorkerAsync(args);
+            }
+            else
+            {
+                //log.Debug(string.Format("Background worker busy.  Ignoring mouse wheel for view {0} [{1}]", overlay.Name, overlay.LastCamUri));
+            }
+        }
+
+        private void VlcOverlay_MouseDown(object sender, MouseEventArgs e)
+        {
+            VlcOverlay overlay = (VlcOverlay)sender;
+            Debug.Print(string.Format("{0} Mouse down ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.Name));
+            log.Debug(string.Format("Mouse down on view {0}", overlay.Name));
+
+            // Use BackgroundWorker to send command to prevent UI lockup
+            if (!BgPtzWorker[overlay.TabIndex].IsBusy)
+            {
+                object[] args = new object[] { overlay, e };
+                BgPtzWorker[overlay.TabIndex].RunWorkerAsync(args);
+            }
+            else
+            {
+                log.Debug(string.Format("Background worker busy.  Ignoring mouse down for view {0} [{1}]", overlay.Name, overlay.LastCamUri));
+            }
+        }
+
+        private void VlcOverlay_MouseUp(object sender, MouseEventArgs e)
+        {
+            VlcOverlay overlay = (VlcOverlay)sender;
+
+            // Attempt to prevent unstopping PTZ (stop send before PTZ?)
+            BgPtzWorker[overlay.TabIndex].CancelAsync();
+            PtzStop(overlay);
+        }
+
+        /// <summary>
+        /// Sends PTZ commands to the relevant camera
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e">Object containing the relevant Vlc View overlay and the mouse event args</param>
+        private void BgPtzWorker_DoWork(object sender, DoWorkEventArgs e)
+        {
+            object[] args = e.Argument as object[];
+
+            VlcOverlay overlay = (VlcOverlay)args[0];
+            MouseEventArgs mouseArgs = (MouseEventArgs)args[1];
+
+            if (!myVlcControl[overlay.TabIndex].IsPlaying)
+            {
+                Debug.Print(string.Format("{0} VLC not playing.  No PTZ command sent.", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")));
+                //log.Debug(string.Format("VLC not playing.  No PTZ command sent to view {0}", overlay.Name));
+                return;
+            }
+
+            // Check if PTZ and enable PTZ controls if necessary
+            if (overlay.PtzEnabled)
+            {
+                if (overlay.PtzController == null)
                 {
-                    VlcViewer.SetVlcFullView(this, vlc);
-                    statusBg.Visible = true;
-                    statusBg.BringToFront();
-                    SetViewerStatus(viewerIndex);
-                    break;
+                    log.Warn(string.Format("No PtzController configured for camera stream [{0}]", overlay.LastCamUri));
+                    throw new Exception(string.Format("No PtzController configured for camera stream [{0}]", overlay.LastCamUri));
+                }
+
+                if (mouseArgs.Delta != 0)
+                {
+                    if (mouseArgs.Delta > 0)
+                    {
+                        Debug.Print(string.Format("{0} Zoom in", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")));
+                        overlay.PtzController.Zoom((float)0.20);
+                    }
+                    else if (mouseArgs.Delta < 0)
+                    {
+                        Debug.Print(string.Format("{0} Zoom out", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")));
+                        overlay.PtzController.Zoom((float)-0.20);
+                    }
+
+                    // Zoom for the sleep duration and then stop (should be a better way to do this)
+                    System.Threading.Thread.Sleep(25);
+                    overlay.PtzController.Stop();
+                    log.Debug(string.Format("Camera Zoom stopped on view {0} [{1}]", overlay.Name, overlay.LastCamUri));
+                    Debug.Print(string.Format("{0} Camera stopped ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.LastCamUri));
+                }
+                else
+                {
+                    // Calculate the speed Pan and Tilt using the mouse location
+                    // Uses the center of the control as point 0, 0 (i.e the center)
+                    // A negative pan speed moves the camera to the left, positive to the right
+                    // A negative tilt speed moves the camera down, positive moves it up
+                    // The speed is a value between 0 and 1 (represents a percent of max speed)
+                    float panSpeed = (float)(mouseArgs.X - (overlay.Width / 2)) / (float)(overlay.Width / 2);
+                    float tiltSpeed = (float)((overlay.Height / 2) - mouseArgs.Y) / (float)(overlay.Height / 2);
+
+                    log.Debug(string.Format("Sending PTZ Command to move [Pan Speed: {0}, Tilt Speed: {1}] on view {2} [{3}]", panSpeed, tiltSpeed, overlay.Name, overlay.LastCamUri));
+                    overlay.PtzController.PanTilt(panSpeed, tiltSpeed);
+                }
+            }
+        }
+
+        private void VlcOverlay_MouseMove(object sender, MouseEventArgs e)
+        {
+            VlcOverlay overlay = (VlcOverlay)sender;
+
+            int minMovePercent = 2;
+            if (overlay.LastMouseArgs == null)
+                overlay.LastMouseArgs = e;
+
+            int x = overlay.Size.Width / 2;
+            int y = overlay.Size.Height / 2;
+            string quadrant = "";
+
+            int deltaX = e.X - x;
+            int deltaY = y - e.Y;
+
+            float radius = (float)Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+            double angle = Math.Atan2(deltaY, deltaX) * (180 / Math.PI);
+
+            if (deltaY >= 0)
+                quadrant = "Top";
+            else
+                quadrant = "Bottom";
+
+            if (deltaX >= 0)
+                quadrant += " Right";
+            else
+                quadrant += " Left";
+
+            if (overlay.PtzEnabled)
+                this.Cursor = Utilities.GetPtzCursor(angle);
+
+            Invoke((Action)(() => { overlay.Controls["Status"].Text = string.Format("{0}\nMouse @ ({1}, {2})\nPolar: {3:0.#}@{4:0.##}\nCart.: {5},{6}", quadrant, e.Location.X, e.Location.Y, radius, angle, deltaX, deltaY); overlay.Controls["Status"].Visible = true; }));
+
+            // Change PTZ command based on mouse position (only if left button down)
+            if (e.Button == MouseButtons.Left)
+            {
+                //Debug.Print(string.Format("Mouse Move with button {0} pressed @ {1}, {2}", e.Button, e.X, e.Y));
+
+                if (Math.Abs((overlay.LastMouseArgs.X - e.X)) > (overlay.Width * ((float)minMovePercent / 100)))
+                {
+                    Debug.Print(string.Format("{0}           {1}", Math.Abs((overlay.LastMouseArgs.X - e.X)), (overlay.Width * ((float)minMovePercent / 100))));
+                    Debug.Print(string.Format("Mouse moved horizontally by more than the minimum percentage [{0}] to [{1}, {2}]", minMovePercent, e.X, e.Y));
+                    //overlay.LastMouseArgs = e;
+                }
+                else if (Math.Abs((overlay.LastMouseArgs.Y - e.Y)) > (overlay.Height * ((float)minMovePercent / 100)))
+                {
+                    Debug.Print(string.Format("{0}           {1}", Math.Abs((overlay.LastMouseArgs.Y - e.Y)), (overlay.Height * ((float)minMovePercent / 100))));
+                    Debug.Print(string.Format("Mouse moved vertically by more than the minimum percentage [{0}] to [{1}, {2}]", minMovePercent, e.X, e.Y));
+                    //overlay.LastMouseArgs = e;
+                }
+                else
+                {
+                    return;
+                }
+
+                // Use BackgroundWorker to send command to prevent UI lockup
+                if (!BgPtzWorker[overlay.TabIndex].IsBusy)
+                {
+                    // Only store new mouse position if a command is successfully sent
+                    // Otherwise an attempt to send the command should be made the next time the mouse moves
+                    overlay.LastMouseArgs = e;
+                    object[] args = new object[] { overlay, e };
+                    BgPtzWorker[overlay.TabIndex].RunWorkerAsync(args);
+                }
+                else
+                {
+                    //log.Debug(string.Format("Background worker busy.  Ignoring mouse down for view {0} [{1}]", overlay.Name, overlay.LastCamUri));
                 }
             }
         }
@@ -725,89 +808,6 @@ namespace RTSP_Viewer
         {
             // Adjust size and position of VLC controls to match new form size
             setSizes();
-        }
-
-        /// <summary>
-        /// Read a key value from an Ini file
-        /// </summary>
-        /// <param name="key"></param>
-        /// <returns></returns>
-        private string getIniValue(string key)
-        {
-            try
-            {
-                var value = MyIni.Read(key);
-
-                if (!MyIni.KeyExists(key))
-                {
-                    // This guarantees that an Ini file will be created if it doesn't exist
-                    MyIni.Write(key, value);
-                }
-
-                return value;
-            }
-            catch
-            {
-                log.Warn(string.Format("Error reading value for ini key [{0}]", key));
-                throw new Exception(string.Format("Error reading value for ini key [{0}]", key));
-            }
-        }
-
-        /// <summary>
-        /// Creates the status object displayed in the lower right corner which
-        /// shows the currently selected View and allows switching between views when a view is full screen
-        /// </summary>
-        private void InitViewerStatus()
-        {
-            // Only need this if showing more than 1 viewer
-            if (NumberOfViews > 1)
-            {
-                statusBg.Controls.Clear();
-                statusBg.BackColor = Color.Black;
-                statusBg.Size = new Size(60, 37);
-                statusBg.Location = new Point(this.ClientSize.Width - statusBg.Width - 10, this.ClientSize.Height - statusBg.Height - 10);
-                statusBg.Anchor = (AnchorStyles.Bottom | AnchorStyles.Right);
-
-                Panel[] viewer = new Panel[NumberOfViews];
-
-                Point[] displayPoint = Utilities.CalculatePointLocations(NumberOfViews, statusBg.Width, statusBg.Height);
-                Size displaySize = Utilities.CalculateItemSizes(NumberOfViews, statusBg.Size.Width, statusBg.Size.Height, 1); // ViewPadding);
-
-                for (int i = 0; i < NumberOfViews; i++)
-                {
-                    viewer[i] = new Panel();
-                    viewer[i].Location = displayPoint[i];
-                    viewer[i].Size = displaySize;
-                    viewer[i].BackColor = Color.Gainsboro;
-                    viewer[i].Name = string.Format("Viewer Status {0}", i);
-                    viewer[i].TabIndex = i;
-                    viewer[i].MouseClick += ViewerStatus_MouseClick;
-                    statusBg.Controls.Add(viewer[i]);
-                }
-
-                statusBg.Visible = true;
-                this.Controls.Add(statusBg);
-                statusBg.BringToFront();
-            }
-            else
-            {
-                statusBg.Visible = false;
-            }
-        }
-
-        /// <summary>
-        /// Update the viewer status object to set the active view
-        /// </summary>
-        /// <param name="activeView">Vlc View number to make active</param>
-        private void SetViewerStatus(int activeView)
-        {
-            foreach (Control c in statusBg.Controls)
-            {
-                if (c.Name == string.Format("Viewer Status {0}", activeView))
-                    c.BackColor = Color.Yellow;
-                else
-                    c.BackColor = Color.Gainsboro;
-            }
         }
 
         private void ViewerStatus_MouseClick(object sender, MouseEventArgs e)
