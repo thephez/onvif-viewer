@@ -48,6 +48,9 @@ namespace RTSP_Viewer
             this.KeyDown += Form1_KeyDown;
 
             InitializeForm();
+
+            // Necessary for Samsung cameras.  The "Expect: 100-continue" HTTP header 
+            // will prevent a connection to them (usually a 417 error will be reported)
             System.Net.ServicePointManager.Expect100Continue = false;
         }
 
@@ -121,6 +124,9 @@ namespace RTSP_Viewer
             }
         }
 
+        /// <summary>
+        /// Configure the VLC Control(s) and overlay(s) that handle mouse events
+        /// </summary>
         private void SetupVlc()
         {
             NumberOfViews = GetNumberOfViews();
@@ -240,6 +246,11 @@ namespace RTSP_Viewer
             PtzStop(overlay);
         }
 
+        /// <summary>
+        /// Sends PTZ commands to the relevant camera
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e">Object containing the relevant Vlc View overlay and the mouse event args</param>
         private void BgPtzWorker_DoWork(object sender, DoWorkEventArgs e)
         {
             object[] args = e.Argument as object[];
@@ -275,6 +286,8 @@ namespace RTSP_Viewer
                         Debug.Print(string.Format("{0} Zoom out", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")));
                         overlay.PtzController.Zoom((float)-0.20);
                     }
+
+                    // Zoom for the sleep duration and then stop (should be a better way to do this)
                     System.Threading.Thread.Sleep(25);
                     overlay.PtzController.Stop();
                     log.Debug(string.Format("Camera Zoom stopped on view {0} [{1}]", overlay.Name, overlay.LastCamUri));
@@ -339,7 +352,7 @@ namespace RTSP_Viewer
                 quadrant += " Left";
 
             if (overlay.PtzEnabled)
-                SetPtzCursor(angle, deltaX, deltaY);
+                this.Cursor = Utilities.GetPtzCursor(angle);
 
             Invoke((Action)(() => { overlay.Controls["Status"].Text = string.Format("{0}\nMouse @ ({1}, {2})\nPolar: {3:0.#}@{4:0.##}\nCart.: {5},{6}", quadrant, e.Location.X, e.Location.Y, radius, angle, deltaX, deltaY); overlay.Controls["Status"].Visible = true; }));
 
@@ -379,27 +392,6 @@ namespace RTSP_Viewer
                     //log.Debug(string.Format("Background worker busy.  Ignoring mouse down for view {0} [{1}]", overlay.Name, overlay.LastCamUri));
                 }
             }
-        }
-
-        private void SetPtzCursor(double angle, int x, int y)
-        {
-            if (angle >= -22.5 && angle < 22.5)
-                this.Cursor = Cursors.PanEast;
-            else if (angle >= 22.5 && angle < 67.5)
-                this.Cursor = Cursors.PanNE;
-            else if (angle >= 67.5 && angle < 112.5)
-                this.Cursor = Cursors.PanNorth;
-            else if (angle >= 112.5 && angle < 157.5)
-                this.Cursor = Cursors.PanNW;
-
-            else if (angle >= 157.5 || angle < -157.5)
-                this.Cursor = Cursors.PanWest;
-            else if (angle >= -157.5 && angle < -112.5)
-                this.Cursor = Cursors.PanSW;
-            else if (angle >= -112.5 && angle < -67.5)
-                this.Cursor = Cursors.PanSouth;
-            else if (angle >= -67.5 && angle < -22.5)
-                this.Cursor = Cursors.PanSE;
         }
 
         private void InitDebugControls()
@@ -761,6 +753,10 @@ namespace RTSP_Viewer
             }
         }
 
+        /// <summary>
+        /// Creates the status object displayed in the lower right corner which
+        /// shows the currently selected View and allows switching between views when a view is full screen
+        /// </summary>
         private void InitViewerStatus()
         {
             // Only need this if showing more than 1 viewer
@@ -799,6 +795,10 @@ namespace RTSP_Viewer
             }
         }
 
+        /// <summary>
+        /// Update the viewer status object to set the active view
+        /// </summary>
+        /// <param name="activeView">Vlc View number to make active</param>
         private void SetViewerStatus(int activeView)
         {
             foreach (Control c in statusBg.Controls)

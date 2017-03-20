@@ -2,6 +2,7 @@
 using System.Drawing;
 using System.Text.RegularExpressions;
 using SDS.Video.Onvif;
+using System.Windows.Forms;
 
 namespace RTSP_Viewer.Classes
 {
@@ -51,6 +52,35 @@ namespace RTSP_Viewer.Classes
             height = height / dim;
 
             return new Size(width - padding, height - padding);
+        }
+
+        /// <summary>
+        /// Gets the that cursor points the approximate direction of PTZ motion
+        /// </summary>
+        /// <param name="angle">The angle of the mouse from the center of the screen (based on the center being x=0, y=0)</param>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        public static Cursor GetPtzCursor(double angle)
+        {
+            if (angle >= -22.5 && angle < 22.5)
+                return Cursors.PanEast;
+            else if (angle >= 22.5 && angle < 67.5)
+                return Cursors.PanNE;
+            else if (angle >= 67.5 && angle < 112.5)
+                return Cursors.PanNorth;
+            else if (angle >= 112.5 && angle < 157.5)
+                return Cursors.PanNW;
+
+            else if (angle >= 157.5 || angle < -157.5)
+                return Cursors.PanWest;
+            else if (angle >= -157.5 && angle < -112.5)
+                return Cursors.PanSW;
+            else if (angle >= -112.5 && angle < -67.5)
+                return Cursors.PanSouth;
+            else if (angle >= -67.5 && angle < -22.5)
+                return Cursors.PanSE;
+            else
+                return Cursors.Default;
         }
 
         /// <summary>
