@@ -21,8 +21,8 @@ namespace SDS.Video
         private bool isConnected = false;
         private bool dataLoaded = false;
 
-        private string User;
-        private string Password;
+        public string User { get; private set; }
+        public string Password { get; private set; }
 
         public static string DefaultManufacturer { get; set; } = "Bosch";  // Not sure we want this to be a static field
         public static int DefaultStream { get; set; } = 1;  // Not sure we want this to be a static field
@@ -118,10 +118,8 @@ namespace SDS.Video
             log4net.ILog logger;
             logger = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
-            //XDocument doc = XDocument.Load("cameras.xml", LoadOptions.SetLineInfo);
             XDocument doc = XDocument.Load(cameraFile, LoadOptions.SetLineInfo);
             XmlSchemaSet schemas = new XmlSchemaSet();
-            //schemas.Add("", XmlReader.Create(new StreamReader("cameras.xsd")));
             schemas.Add("", XmlReader.Create(new StreamReader(schemaFile)));
 
             try
@@ -149,8 +147,8 @@ namespace SDS.Video
                               Device = camera.Element("device").Value.Trim(),
                               Number = camera.Element("number").Value.Trim(),
                               Manufacturer = (string)camera.Element("manufacturer") ?? DefaultManufacturer,
-                              User = (string)camera.Element("username"),
-                              Password = (string)camera.Element("password"),
+                              User = (string)camera.Element("username") ?? "",
+                              Password = (string)camera.Element("password") ?? "",
                           };
 
             foreach (var cam in cameras)
@@ -164,6 +162,9 @@ namespace SDS.Video
                 c.Manufacturer = cam.Manufacturer == null ? "Not provided" : cam.Manufacturer;
                 c.User = cam.User;
                 c.Password = cam.Password;
+
+                if (new[] { "@", ":" }.Any(cam.Password.Contains)) //  cam.Password.Contains("@"))
+                    logger.Error(string.Format("*** Password [{0}] for camera [{1}:{2}] contains an invalid character.  Connections to the camera will fail. ***", c.Password, c.IP, c.Device));
 
                 try
                 {

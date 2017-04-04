@@ -388,7 +388,7 @@ namespace RTSP_Viewer
 
                 string ip = cam.IP; // "127.0.0.1";
                 int onvifPort = 80; // 8046
-                vlcOverlay[ViewerNum].PtzController = new SDS.Video.Onvif.OnvifPtz(ip, onvifPort, "admin", "P@ssw0rd"); // cam.IP, 80);
+                vlcOverlay[ViewerNum].PtzController = new SDS.Video.Onvif.OnvifPtz(ip, onvifPort, cam.User, cam.Password); // "admin", "P@ssw0rd");
 
                 // Set the IsPtz property of the Camera
                 cam.IsPtz = vlcOverlay[ViewerNum].PtzController.IsPtz();
