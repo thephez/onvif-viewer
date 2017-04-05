@@ -7,6 +7,8 @@ using System.Xml.Linq;
 using System.Xml.Schema;
 using System.Xml;
 using System.IO;
+using RTSP_Viewer.OnvifDeviceManagementServiceReference;
+using SDS.Video.Onvif;
 
 namespace SDS.Video
 {
@@ -24,12 +26,15 @@ namespace SDS.Video
         public string User { get; private set; }
         public string Password { get; private set; }
 
+        public Dictionary<string, string> ServiceUris { get; private set; } = new Dictionary<string, string>();
+        public bool IsOnvifLoaded { get; private set; } = false;
+
         public static string DefaultManufacturer { get; set; } = "Bosch";  // Not sure we want this to be a static field
         public static int DefaultStream { get; set; } = 1;  // Not sure we want this to be a static field
         public static string DefaultCameraFile { get; set; } = "cameras.xml"; // Not sure we want this to be a static field
         public static string DefaultSchemaFile { get; set; } = "cameras.xsd"; // Not sure we want this to be a static field
 
-        private static Dictionary<int, Camera> cameraSet = new Dictionary<int, Camera>();
+        private static Dictionary<int, Camera> cameraSet = new Dictionary<int, Camera>();  // static so shared by all instances of this class
 
         private Camera()
         {
@@ -75,7 +80,6 @@ namespace SDS.Video
                 uri = string.Format("rtsp://{0}:{1}@", cam.User, cam.Password);
             else
                 uri = "rtsp://";
-
 
             if (cam.Manufacturer.Equals("Bosch", StringComparison.CurrentCultureIgnoreCase))
             {
@@ -177,6 +181,23 @@ namespace SDS.Video
                 }
             }
             logger.Info(string.Format("Imported information for {0} camera(s) from xml file", cameraSet.Count));
+        }
+
+        /// <summary>
+        /// Retrieves Onvif service URIs from the device and stores them in the ServiceUris dictionary
+        /// </summary>
+        /// <param name="onvifPort">Port to connect on (normally HTTP - 80)</param>
+        public void GetOnvifUris(int onvifPort = 80)
+        {
+            ServiceUris.Clear();
+
+            DeviceClient client = OnvifServices.GetOnvifDeviceClient(IP, onvifPort, User, Password);
+            Service[] svc = client.GetServices(IncludeCapability: true);
+            foreach (Service s in svc)
+            {
+                ServiceUris.Add(s.Namespace, s.XAddr);
+            }
+            IsOnvifLoaded = true;
         }
 
         private static Camera LookupCamera(int i)

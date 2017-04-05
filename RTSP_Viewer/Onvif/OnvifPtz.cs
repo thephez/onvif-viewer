@@ -3,48 +3,47 @@ using System;
 
 namespace SDS.Video.Onvif
 {
-    //public enum PtzCommand
-    //{
-    //    PanEast,
-    //    PanTiltNE,
-    //    TiltNorth,
-    //    PanTiltNW,
-    //    PanWest,
-    //    PanTiltSW,
-    //    TiltSouth,
-    //    PanTiltSE,
-    //    ZoomIn,
-    //    ZoomOut
-    //}
 
     public class OnvifPtz
     {
-        private System.Net.IPAddress IP;
-        private int Port;
+        //private System.Net.IPAddress IP;
+        //private int Port;
         private string User;
         private string Password;
         private PTZClient PtzClient;
         private RTSP_Viewer.OnvifMediaServiceReference.MediaClient MediaClient;
         public bool PtzAvailable;
 
-        public OnvifPtz(string ip, int port)
-        {
-            System.Net.IPAddress.TryParse(ip, out IP);
-            Port = port;
-            PtzClient = OnvifServices.GetOnvifPTZClient(IP.ToString(), port);
-            MediaClient = OnvifServices.GetOnvifMediaClient(IP.ToString(), Port);
-            //IsPtz();
-        }
+        //public OnvifPtz(string ip, int port)
+        //{
+        //    System.Net.IPAddress.TryParse(ip, out IP);
+        //    Port = port;
+        //    PtzClient = OnvifServices.GetOnvifPTZClient(IP.ToString(), port);
+        //    MediaClient = OnvifServices.GetOnvifMediaClient(IP.ToString(), Port);
+        //    //IsPtz();
+        //}
 
-        public OnvifPtz(string ip, int port, string user, string password)
+        //public OnvifPtz(string ip, int port, string user, string password)
+        //{
+        //    System.Net.IPAddress.TryParse(ip, out IP);
+        //    Port = port;
+        //    User = user;
+        //    Password = password;
+
+        //    PtzClient = OnvifServices.GetOnvifPTZClient(IP.ToString(), Port, User, Password);
+        //    MediaClient = OnvifServices.GetOnvifMediaClient(IP.ToString(), Port, User, Password);
+        //}
+
+        public OnvifPtz(string mediaUri, string ptzUri, string user = "", string password = "")
         {
-            System.Net.IPAddress.TryParse(ip, out IP);
-            Port = port;
             User = user;
             Password = password;
 
-            PtzClient = OnvifServices.GetOnvifPTZClient(IP.ToString(), Port, User, Password);
-            MediaClient = OnvifServices.GetOnvifMediaClient(IP.ToString(), Port, User, Password);
+            if (string.IsNullOrEmpty(mediaUri) | string.IsNullOrEmpty(ptzUri))
+                throw new Exception("Media and/or PTZ URI is empty or null.  PTZ object cannot be created");
+
+            PtzClient = OnvifServices.GetOnvifPTZClient(ptzUri, User, Password);
+            MediaClient = OnvifServices.GetOnvifMediaClient(mediaUri, User, Password);
         }
 
         /// <summary>
@@ -120,7 +119,8 @@ namespace SDS.Video.Onvif
             PTZConfigurationOptions ptzConfigurationOptions = PtzClient.GetConfigurationOptions(mediaProfile.PTZConfiguration.token);
 
             PTZSpeed velocity = new PTZSpeed();
-            velocity.PanTilt = new Vector2D() {
+            velocity.PanTilt = new Vector2D()
+            {
                 x = panSpeed * ptzConfigurationOptions.Spaces.ContinuousPanTiltVelocitySpace[0].XRange.Max,
                 y = tiltSpeed * ptzConfigurationOptions.Spaces.ContinuousPanTiltVelocitySpace[0].YRange.Max
             };
@@ -171,7 +171,7 @@ namespace SDS.Video.Onvif
         /// </summary>
         /// <param name="profileToken"></param>
         /// <param name="presetToken"></param>
-        public void ShowPreset(string profileToken, string presetToken)
+        private void ShowPreset(string profileToken, string presetToken)
         {
             RTSP_Viewer.OnvifMediaServiceReference.Profile[] mediaProfiles = MediaClient.GetProfiles();
             profileToken = mediaProfiles[0].token;
@@ -216,7 +216,7 @@ namespace SDS.Video.Onvif
                 RTSP_Viewer.OnvifMediaServiceReference.Profile mediaProfile = GetMediaProfile();
                 PtzAvailable = true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 PtzAvailable = false;
             }

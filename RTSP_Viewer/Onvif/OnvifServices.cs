@@ -33,9 +33,9 @@ namespace SDS.Video.Onvif
             return deviceClient;
         }
 
-        public static RTSP_Viewer.OnvifMediaServiceReference.MediaClient GetOnvifMediaClient(string ip, int port, string username = "", string password = "")
+        public static RTSP_Viewer.OnvifMediaServiceReference.MediaClient GetOnvifMediaClient(string Uri, string username = "", string password = "")
         {
-            EndpointAddress serviceAddress = new EndpointAddress(string.Format("http://{0}:{1}/onvif/media_service", ip, port));
+            EndpointAddress serviceAddress = new EndpointAddress(Uri);
 
             HttpTransportBindingElement httpBinding = new HttpTransportBindingElement();
             httpBinding.AuthenticationScheme = AuthenticationSchemes.Digest;
@@ -52,13 +52,13 @@ namespace SDS.Video.Onvif
                 PasswordDigestBehavior behavior = new PasswordDigestBehavior(username, password);
                 mediaClient.Endpoint.Behaviors.Add(behavior);
             }
-            
+
             return mediaClient;
         }
 
-        public static PTZClient GetOnvifPTZClient(string ip, int port, string username = "", string password = "")
+        public static PTZClient GetOnvifPTZClient(string Uri, string username = "", string password = "")
         {
-            EndpointAddress serviceAddress = new EndpointAddress(string.Format("http://{0}:{1}/onvif/ptz_service", ip, port));
+            EndpointAddress serviceAddress = new EndpointAddress(Uri);
 
             HttpTransportBindingElement httpBinding = new HttpTransportBindingElement();
             httpBinding.AuthenticationScheme = AuthenticationSchemes.Digest;
@@ -98,7 +98,7 @@ namespace SDS.Video.Onvif
 
         //    //deviceClient.ClientCredentials.UserName.UserName = user;
         //    //deviceClient.ClientCredentials.UserName.Password = password;
-            
+
         //    return deviceClient;
         //}
     }

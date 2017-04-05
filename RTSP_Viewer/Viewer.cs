@@ -11,6 +11,7 @@ using log4net;
 using System.Text.RegularExpressions;
 using System.IO;
 using System.ComponentModel;
+using SDS.Video.Onvif;
 
 namespace RTSP_Viewer
 {
@@ -383,21 +384,30 @@ namespace RTSP_Viewer
             {
                 string URI = Camera.GetRtspUri(CameraNum);
                 CameraCallup(URI, ViewerNum);
-
+                
+                // Check if PTZ controls should be enabled
                 Camera cam = Camera.GetCamera(CameraNum);
+                
+                if (!cam.IsOnvifLoaded)
+                {
+                    // Get list of XAddrs via device_service to determine if this is a PTZ
+                    cam.GetOnvifUris();
+                    if (cam.ServiceUris.ContainsKey("http://www.onvif.org/ver20/ptz/wsdl"))
+                        cam.IsPtz = true;
+                    else
+                        cam.IsPtz = false;
+                }
 
-                string ip = cam.IP; // "127.0.0.1";
-                int onvifPort = 80; // 8046
-                vlcOverlay[ViewerNum].PtzController = new SDS.Video.Onvif.OnvifPtz(ip, onvifPort, cam.User, cam.Password); // "admin", "P@ssw0rd");
+                if (cam.IsPtz)
+                    vlcOverlay[ViewerNum].PtzController = new OnvifPtz(cam.ServiceUris[OnvifNamespace.MEDIA], cam.ServiceUris[OnvifNamespace.PTZ], user: cam.User, password: cam.Password); // "admin", "P@ssw0rd");
 
-                // Set the IsPtz property of the Camera
-                cam.IsPtz = vlcOverlay[ViewerNum].PtzController.IsPtz();
-
-                // Enable the PTZ functionality on the Overlay
+                // Enable the PTZ functionality on the Overlay if available
                 vlcOverlay[ViewerNum].PtzEnabled = cam.IsPtz;
             }
             catch (Exception ex)
             {
+                log.Error(string.Format("Unable to callup camera or access PTZ.  Exception: {0}", ex.Message));
+
                 myVlcControl[ViewerNum].Stop();
                 myVlcControl[ViewerNum].BackColor = Color.Gray;
                 string status = string.Format("Camera #{0} unavailable", CameraNum);
