@@ -382,26 +382,29 @@ namespace RTSP_Viewer
         {
             try
             {
-                string URI = Camera.GetRtspUri(CameraNum);
-                CameraCallup(URI, ViewerNum);
-                
-                // Check if PTZ controls should be enabled
                 Camera cam = Camera.GetCamera(CameraNum);
-                
+
+                // Load Onvif data (Service and Stream URIs) if not loaded yet (slow, but only done once - figure out how to improve)
                 if (!cam.IsOnvifLoaded)
                 {
-                    // Get list of XAddrs via device_service to determine if this is a PTZ
-                    cam.GetOnvifUris();
-                    if (cam.ServiceUris.ContainsKey("http://www.onvif.org/ver20/ptz/wsdl"))
+                    Invoke((Action)(() => { vlcOverlay[ViewerNum].Controls["Status"].Text = "Getting stream"; vlcOverlay[ViewerNum].Controls["Status"].Visible = true; }));
+                    cam.LoadOnvifData(onvifPort: 80, sType: OnvifMediaServiceReference.StreamType.RTPUnicast, tProtocol: OnvifMediaServiceReference.TransportProtocol.RTSP);
+
+                    // Check if this is an Onvif enabled PTZ
+                    if (cam.ServiceUris.ContainsKey(OnvifNamespace.PTZ))
                         cam.IsPtz = true;
                     else
                         cam.IsPtz = false;
                 }
 
+                // Get the Onvif stream URI and callup the camera
+                string URI = cam.GetCameraUri();
+                CameraCallup(URI, ViewerNum);
+
+                // Prepare PTZ object and enable the PTZ functionality on the Overlay if available
                 if (cam.IsPtz)
                     vlcOverlay[ViewerNum].PtzController = new OnvifPtz(cam.ServiceUris[OnvifNamespace.MEDIA], cam.ServiceUris[OnvifNamespace.PTZ], user: cam.User, password: cam.Password); // "admin", "P@ssw0rd");
-
-                // Enable the PTZ functionality on the Overlay if available
+                                
                 vlcOverlay[ViewerNum].PtzEnabled = cam.IsPtz;
             }
             catch (Exception ex)

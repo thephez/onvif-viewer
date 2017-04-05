@@ -9,6 +9,7 @@ using System.Xml;
 using System.IO;
 using RTSP_Viewer.OnvifDeviceManagementServiceReference;
 using SDS.Video.Onvif;
+using RTSP_Viewer.OnvifMediaServiceReference;
 
 namespace SDS.Video
 {
@@ -27,6 +28,7 @@ namespace SDS.Video
         public string Password { get; private set; }
 
         public Dictionary<string, string> ServiceUris { get; private set; } = new Dictionary<string, string>();
+        public List<string> StreamUris { get; private set; } = new List<string>();
         public bool IsOnvifLoaded { get; private set; } = false;
 
         public static string DefaultManufacturer { get; set; } = "Bosch";  // Not sure we want this to be a static field
@@ -63,47 +65,57 @@ namespace SDS.Video
             }
         }
 
+        ///// <summary>
+        ///// Get RTSP URI for the requested camera number. 
+        ///// Based on Manufacturer and other info from XML file
+        ///// </summary>
+        ///// <param name="cameraNumber">Camera to get RTSP URI for</param>
+        ///// <returns>RTSP URI that can be used to display live video</returns>
+        //public static string GetRtspUri(int cameraNumber)
+        //{
+        //    Camera cam = GetCamera(cameraNumber);
+
+        //    int rtspPort = 554;
+        //    string uri = null;
+
+        //    if (cam.User != null && cam.Password != null)
+        //        uri = string.Format("rtsp://{0}:{1}@", cam.User, cam.Password);
+        //    else
+        //        uri = "rtsp://";
+
+        //    if (cam.Manufacturer.Equals("Bosch", StringComparison.CurrentCultureIgnoreCase))
+        //    {
+        //        uri = string.Format("{0}{1}:{2}/?h26x={3}&line={4}&inst={5}", uri, cam.IP, rtspPort, 4, cam.Device, cam.Stream);
+        //    }
+        //    else if (cam.Manufacturer.Equals("Axis", StringComparison.CurrentCultureIgnoreCase))
+        //    {
+        //        uri = string.Format("{0}{1}:{2}/onvif-media/media.amp", uri, cam.IP, rtspPort);
+        //    }
+        //    else if (cam.Manufacturer.Equals("Pelco", StringComparison.CurrentCultureIgnoreCase))
+        //    {
+        //        uri = string.Format("rtsp://{0}:{1}/stream{2}", cam.IP, rtspPort, cam.Stream);
+        //    }
+        //    else if (cam.Manufacturer.Equals("Samsung", StringComparison.CurrentCultureIgnoreCase))
+        //    {
+        //        uri = string.Format("{0}{1}:{2}/onvif/profile{3}/media.smp", uri, cam.IP, rtspPort, cam.Stream);
+        //    }
+        //    else
+        //    {
+        //        throw new Exception(string.Format("Camera manufacturer '{0}' not recognized.", cam.Manufacturer),
+        //            new Exception(string.Format("Unable to create RTSP URI for manufacturer '{0}'.", cam.Manufacturer)));
+        //    }
+
+        //    return uri;
+        //}
+
         /// <summary>
-        /// Get RTSP URI for the requested camera number. 
-        /// Based on Manufacturer and other info from XML file
+        /// Get Stream URI for camera by using the Camera stream number (from the XML file)
+        /// as an index to an Onvif media profile as returned by the Onvif GetProfiles() command
         /// </summary>
-        /// <param name="cameraNumber">Camera to get RTSP URI for</param>
-        /// <returns>RTSP URI that can be used to display live video</returns>
-        public static string GetRtspUri(int cameraNumber)
+        /// <returns></returns>
+        public string GetCameraUri() //TransportProtocol tProtocol, StreamType sType)
         {
-            Camera cam = GetCamera(cameraNumber);
-
-            int rtspPort = 554;
-            string uri = null;
-
-            if (cam.User != null && cam.Password != null)
-                uri = string.Format("rtsp://{0}:{1}@", cam.User, cam.Password);
-            else
-                uri = "rtsp://";
-
-            if (cam.Manufacturer.Equals("Bosch", StringComparison.CurrentCultureIgnoreCase))
-            {
-                uri = string.Format("{0}{1}:{2}/?h26x={3}&line={4}&inst={5}", uri, cam.IP, rtspPort, 4, cam.Device, cam.Stream);
-            }
-            else if (cam.Manufacturer.Equals("Axis", StringComparison.CurrentCultureIgnoreCase))
-            {
-                uri = string.Format("{0}{1}:{2}/onvif-media/media.amp", uri, cam.IP, rtspPort);
-            }
-            else if (cam.Manufacturer.Equals("Pelco", StringComparison.CurrentCultureIgnoreCase))
-            {
-                uri = string.Format("rtsp://{0}:{1}/stream{2}", cam.IP, rtspPort, cam.Stream);
-            }
-            else if (cam.Manufacturer.Equals("Samsung", StringComparison.CurrentCultureIgnoreCase))
-            {
-                uri = string.Format("{0}{1}:{2}/onvif/profile{3}/media.smp", uri, cam.IP, rtspPort, cam.Stream);
-            }
-            else
-            {
-                throw new Exception(string.Format("Camera manufacturer '{0}' not recognized.", cam.Manufacturer),
-                    new Exception(string.Format("Unable to create RTSP URI for manufacturer '{0}'.", cam.Manufacturer)));
-            }
-
-            return uri;
+            return StreamUris[StreamIndex - 1];
         }
 
         /// <summary>
@@ -174,7 +186,7 @@ namespace SDS.Video
                 {
                     cameraSet.Add(c.Number, c);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     logger.Error(string.Format("Error adding camera value to hash table. This may be a collision (a repeated camera number) " +
                         " or an invalid camera number. Camera number used was {0}.", int.Parse(cam.Number)));
@@ -187,7 +199,7 @@ namespace SDS.Video
         /// Retrieves Onvif service URIs from the device and stores them in the ServiceUris dictionary
         /// </summary>
         /// <param name="onvifPort">Port to connect on (normally HTTP - 80)</param>
-        public void GetOnvifUris(int onvifPort = 80)
+        private void GetOnvifUris(int onvifPort)
         {
             ServiceUris.Clear();
 
@@ -197,7 +209,45 @@ namespace SDS.Video
             {
                 ServiceUris.Add(s.Namespace, s.XAddr);
             }
+            //IsOnvifLoaded = true;
+        }
+
+        /// <summary>
+        /// Retrieves Onvif video stream URIs from the device and stores them in the StreamUris dictionary
+        /// </summary>
+        /// <param name="onvifPort">Port to connect on (normally HTTP - 80)</param>
+        private void GetStreamUris(int onvifPort, StreamType sType, TransportProtocol tProtocol)
+        {
+            StreamUris.Clear();
+            
+            MediaClient mc = OnvifServices.GetOnvifMediaClient(ServiceUris[OnvifNamespace.MEDIA], User, Password);
+            Profile[] mediaProfiles = mc.GetProfiles();
+            StreamSetup ss = new StreamSetup();
+            Transport transport = new Transport() { Protocol = tProtocol };
+            string uri;
+
+            foreach (Profile p in mediaProfiles)
+            {
+                // Get stream URI for the requested transport/protocol
+                ss.Stream = sType;
+                ss.Transport = transport;
+                MediaUri mu = mc.GetStreamUri(ss, p.token);
+                if (User != "")
+                    uri = string.Format("{0}{1}:{2}@{3}", mu.Uri.Substring(0, mu.Uri.IndexOf("://") + 3), User, Password, mu.Uri.Substring(mu.Uri.IndexOf("://") + 3));
+                else
+                    uri = mu.Uri;
+
+                StreamUris.Add(uri);
+            }
+        }
+
+        public bool LoadOnvifData(int onvifPort, StreamType sType, TransportProtocol tProtocol)
+        {
+            GetOnvifUris(80);
+            GetStreamUris(80, sType, tProtocol);
             IsOnvifLoaded = true;
+
+            return true;
         }
 
         private static Camera LookupCamera(int i)
