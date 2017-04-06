@@ -90,63 +90,12 @@ namespace SDS.Video.Onvif
                 log.Warn(string.Format("Disabling PTZ control based on the PTZConfiguration being null for stream profile {0}", StreamUri));
                 IsPtzEnabled = false;
             }
-
-            //foreach (Profile p in mediaProfiles)
-            //{
-            //    // Get stream URI for the requested transport/protocol
-            //    ss.Stream = sType;
-            //    ss.Transport = transport;
-            //    MediaUri mu = mc.GetStreamUri(ss, p.token);
-            //    if (User != "")
-            //        uri = string.Format("{0}{1}:{2}@{3}", mu.Uri.Substring(0, mu.Uri.IndexOf("://") + 3), User, Password, mu.Uri.Substring(mu.Uri.IndexOf("://") + 3));
-            //    else
-            //        uri = mu.Uri;
-
-            //    StreamUris.Add(uri);
-            //}
         }
 
-        ///// <summary>
-        ///// Get RTSP URI for the requested camera number. 
-        ///// Based on Manufacturer and other info from XML file
-        ///// </summary>
-        ///// <param name="cameraNumber">Camera to get RTSP URI for</param>
-        ///// <returns>RTSP URI that can be used to display live video</returns>
-        //public static string GetRtspUri(int cameraNumber)
-        //{
-        //    Camera cam = GetCamera(cameraNumber);
-
-        //    int rtspPort = 554;
-        //    string uri = null;
-
-        //    if (cam.User != null && cam.Password != null)
-        //        uri = string.Format("rtsp://{0}:{1}@", cam.User, cam.Password);
-        //    else
-        //        uri = "rtsp://";
-
-        //    if (cam.Manufacturer.Equals("Bosch", StringComparison.CurrentCultureIgnoreCase))
-        //    {
-        //        uri = string.Format("{0}{1}:{2}/?h26x={3}&line={4}&inst={5}", uri, cam.IP, rtspPort, 4, cam.Device, cam.Stream);
-        //    }
-        //    else if (cam.Manufacturer.Equals("Axis", StringComparison.CurrentCultureIgnoreCase))
-        //    {
-        //        uri = string.Format("{0}{1}:{2}/onvif-media/media.amp", uri, cam.IP, rtspPort);
-        //    }
-        //    else if (cam.Manufacturer.Equals("Pelco", StringComparison.CurrentCultureIgnoreCase))
-        //    {
-        //        uri = string.Format("rtsp://{0}:{1}/stream{2}", cam.IP, rtspPort, cam.Stream);
-        //    }
-        //    else if (cam.Manufacturer.Equals("Samsung", StringComparison.CurrentCultureIgnoreCase))
-        //    {
-        //        uri = string.Format("{0}{1}:{2}/onvif/profile{3}/media.smp", uri, cam.IP, rtspPort, cam.Stream);
-        //    }
-        //    else
-        //    {
-        //        throw new Exception(string.Format("Camera manufacturer '{0}' not recognized.", cam.Manufacturer),
-        //            new Exception(string.Format("Unable to create RTSP URI for manufacturer '{0}'.", cam.Manufacturer)));
-        //    }
-
-        //    return uri;
-        //}
+        // Example URI formats for various manufacturers (RTSP port = 554, uri = "rtsp://user:password@...")
+        //  Bosch uri   = string.Format("{0}{1}:{2}/?h26x={3}&line={4}&inst={5}", uri, cam.IP, rtspPort, 4, cam.Device, cam.Stream);
+        //  Axis uri    = string.Format("{0}{1}:{2}/onvif-media/media.amp", uri, cam.IP, rtspPort);
+        //  Pelco uri   = string.Format("rtsp://{0}:{1}/stream{2}", cam.IP, rtspPort, cam.Stream);
+        //  Samsung uri = string.Format("{0}{1}:{2}/onvif/profile{3}/media.smp", uri, cam.IP, rtspPort, cam.Stream);
     }
 }

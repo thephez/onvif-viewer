@@ -18,35 +18,14 @@ namespace SDS.Video.Onvif
 
         private static readonly ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
-        //public OnvifPtz(string ip, int port)
-        //{
-        //    System.Net.IPAddress.TryParse(ip, out IP);
-        //    Port = port;
-        //    PtzClient = OnvifServices.GetOnvifPTZClient(IP.ToString(), port);
-        //    MediaClient = OnvifServices.GetOnvifMediaClient(IP.ToString(), Port);
-        //    //IsPtz();
-        //}
-
-        //public OnvifPtz(string mediaUri, string ptzUri, string user = "", string password = "")
-        //{
-        //    User = user;
-        //    Password = password;
-
-        //    if (string.IsNullOrEmpty(mediaUri) | string.IsNullOrEmpty(ptzUri))
-        //        throw new Exception("Media and/or PTZ URI is empty or null.  PTZ object cannot be created");
-
-        //    PtzClient = OnvifServices.GetOnvifPTZClient(ptzUri, User, Password);
-        //    MediaClient = OnvifServices.GetOnvifMediaClient(mediaUri, User, Password);
-        //}
-
         /// <summary>
         /// Instantiates PTZ object with known media profile
         /// </summary>
-        /// <param name="mediaUri"></param>
-        /// <param name="ptzUri"></param>
-        /// <param name="mediaProfile"></param>
-        /// <param name="user"></param>
-        /// <param name="password"></param>
+        /// <param name="mediaUri">Camera's Media URI (from device client GetServices())</param>
+        /// <param name="ptzUri">Camera's PTZ URI (from device client GetServices())</param>
+        /// <param name="mediaProfile">Media Profile to use</param>
+        /// <param name="user">Username</param>
+        /// <param name="password">Password</param>
         public OnvifPtz(string mediaUri, string ptzUri, RTSP_Viewer.OnvifMediaServiceReference.Profile mediaProfile, string user, string password)
         {
             User = user;
@@ -74,7 +53,7 @@ namespace SDS.Video.Onvif
             }
             else
             {
-                log.Info(string.Format("PTZ Media profile not assigned.  Finding first available PTZ-enabled profile - THIS MAY CAUSE ISSUES (commands sent to wrong stream) AND NEEDS TO BE CHANGED"));
+                log.Warn(string.Format("PTZ Media profile not assigned.  Finding first available PTZ-enabled profile - THIS MAY CAUSE ISSUES (commands sent to wrong stream) AND NEEDS TO BE CHANGED"));
                 // If no profile defined, take a guess and select the first available one - THIS NEEDS TO GO AWAY EVENTUALLY
                 RTSP_Viewer.OnvifMediaServiceReference.Profile[] mediaProfiles = MediaClient.GetProfiles();
 
@@ -194,29 +173,6 @@ namespace SDS.Video.Onvif
             }
         }
 
-        /// <summary>
-        /// *DON'T USE - not completed. Call up a preset by Profile/Preset token
-        /// </summary>
-        /// <param name="profileToken"></param>
-        /// <param name="presetToken"></param>
-        private void ShowPreset(string profileToken, string presetToken)
-        {
-            RTSP_Viewer.OnvifMediaServiceReference.Profile[] mediaProfiles = MediaClient.GetProfiles();
-            profileToken = mediaProfiles[0].token;
-
-            if (IsValidPresetToken(profileToken, presetToken))
-            {
-                PTZSpeed velocity = new PTZSpeed();
-                velocity.PanTilt = new Vector2D() { x = (float)-0.5, y = 0 }; ;
-
-                PtzClient.GotoPreset(profileToken, presetToken, velocity);
-            }
-            else
-            {
-                throw new Exception(string.Format("Invalid Preset requested - preset token {0}", presetToken));
-            }
-        }
-
         public bool IsValidPresetToken(string profileToken, string presetToken)
         {
             PTZPreset[] presets = PtzClient.GetPresets(profileToken);
@@ -229,6 +185,10 @@ namespace SDS.Video.Onvif
             return false;
         }
 
+        /// <summary>
+        /// Get the current Ptz location from the camera
+        /// </summary>
+        /// <returns></returns>
         public PTZStatus GetPtzLocation()
         {
             RTSP_Viewer.OnvifMediaServiceReference.Profile mediaProfile = GetMediaProfile();

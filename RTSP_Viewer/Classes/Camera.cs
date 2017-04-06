@@ -154,19 +154,6 @@ namespace SDS.Video
             logger.Info(string.Format("Imported information for {0} camera(s) from xml file", cameraSet.Count));
         }
 
-        ///// <summary>
-        ///// Load required Onvif data from device (stream URI, services, etc.)
-        ///// </summary>
-        ///// <param name="onvifPort">Port to connect on (normally HTTP - 80)</param>
-        ///// <param name="sType">Stream type (Unicast/Multicast)</param>
-        ///// <param name="tProtocol">Protocol (HTTP/RTSP/TCP/UDP)</param>
-        ///// <returns></returns>
-        //public bool LoadOnvifData(int onvifPort, StreamType sType, TransportProtocol tProtocol)  // Probably should be private and done automatically
-        //{
-        //    OnvifData.LoadOnvifData(IP, 80, User, Password, StreamType.RTPUnicast, TransportProtocol.RTSP, StreamIndex);
-        //    return IsOnvifLoaded;
-        //}
-
         private static Camera LookupCamera(int i)
         {
             return cameraSet[i];
