@@ -15,6 +15,7 @@ namespace SDS.Video.Onvif
 
         public bool IsOnvifLoaded { get; private set; } = false;
         public bool IsPtz { get; private set; } = false;
+        public bool IsPtzEnabled { get; private set; } = false;
 
         private static readonly ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -39,7 +40,7 @@ namespace SDS.Video.Onvif
             ServiceUris.Clear();
 
             DeviceClient client = OnvifServices.GetOnvifDeviceClient(ip, onvifPort, user, password);
-            Service[] svc = client.GetServices(IncludeCapability: true);
+            Service[] svc = client.GetServices(IncludeCapability: false); // Bosch Autodome 800 response can't be deserialized if IncludeCapability enabled
             foreach (Service s in svc)
             {
                 ServiceUris.Add(s.Namespace, s.XAddr);
@@ -83,11 +84,13 @@ namespace SDS.Video.Onvif
 
             // A PTZ may not have a PTZ configuration for a particular media profile
             // Disable PTZ access in that case
+            IsPtzEnabled = IsPtz;
             if (MediaProfile.PTZConfiguration == null && IsPtz)
             {
-                log.Warn(string.Format("Overriding IsPtz (setting to false) based on stream profile PTZConfiguration being null for {0}", StreamUri));
-                IsPtz = false;
+                log.Warn(string.Format("Disabling PTZ control based on the PTZConfiguration being null for stream profile {0}", StreamUri));
+                IsPtzEnabled = false;
             }
+
             //foreach (Profile p in mediaProfiles)
             //{
             //    // Get stream URI for the requested transport/protocol

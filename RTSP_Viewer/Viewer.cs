@@ -373,40 +373,41 @@ namespace RTSP_Viewer
         }
 
         /// <summary>
-        /// Callup the requested camera on the provided display number (preset not implemented)
+        /// Callup the requested camera on the provided display number (preset not implemented) and enable PTZ controls if available
         /// </summary>
         /// <param name="ViewerNum">Control to display video on</param>
         /// <param name="CameraNum">Camera number to display</param>
         /// <param name="Preset">Camera Preset</param>
         private void CameraCallup(int ViewerNum, int CameraNum, int Preset)
         {
+            Camera cam = null;
+
             try
             {
-                Camera cam = Camera.GetCamera(CameraNum);
+                Invoke((Action)(() => { vlcOverlay[ViewerNum].Controls["Status"].Text = "Getting stream"; vlcOverlay[ViewerNum].Controls["Status"].Visible = true; }));
 
                 // Get the Onvif stream URI and callup the camera
-                Invoke((Action)(() => { vlcOverlay[ViewerNum].Controls["Status"].Text = "Getting stream"; vlcOverlay[ViewerNum].Controls["Status"].Visible = true; }));
+                cam = Camera.GetCamera(CameraNum);
                 string URI = cam.GetCameraUri(OnvifMediaServiceReference.TransportProtocol.RTSP, OnvifMediaServiceReference.StreamType.RTPUnicast);
                 CameraCallup(URI, ViewerNum);
-
-                // Prepare PTZ object and enable the PTZ functionality on the Overlay if available
-                if (cam.IsPtz)
-                    vlcOverlay[ViewerNum].PtzController = new OnvifPtz(cam.OnvifData.ServiceUris[OnvifNamespace.MEDIA], cam.OnvifData.ServiceUris[OnvifNamespace.PTZ], cam.OnvifData.MediaProfile, cam.User, cam.Password);
-
-                vlcOverlay[ViewerNum].PtzEnabled = cam.IsPtz;
             }
             catch (Exception ex)
             {
-                log.Error(string.Format("Unable to callup camera or access PTZ.  Exception: {0}", ex.Message));
+                log.Error(string.Format("Unable to callup camera.  Exception: {0}", ex.Message));
 
                 myVlcControl[ViewerNum].Stop();
                 myVlcControl[ViewerNum].BackColor = Color.Gray;
-                string status = string.Format("Camera #{0} unavailable", CameraNum);
-                //notification.ShowBalloonTip(1, this.Name, status, ToolTipIcon.Warning);
 
+                string status = string.Format("Camera #{0} unavailable", CameraNum);
                 Invoke((Action)(() => { vlcOverlay[ViewerNum].Controls["Status"].Text = status; vlcOverlay[ViewerNum].Controls["Status"].Visible = true; }));
                 throw;
             }
+
+            // Prepare PTZ object and enable the PTZ functionality on the Overlay if available
+            if (cam.IsPtz && cam.IsPtzEnabled)
+                vlcOverlay[ViewerNum].PtzController = new OnvifPtz(cam.OnvifData.ServiceUris[OnvifNamespace.MEDIA], cam.OnvifData.ServiceUris[OnvifNamespace.PTZ], cam.OnvifData.MediaProfile, cam.User, cam.Password);
+
+            vlcOverlay[ViewerNum].PtzEnabled = cam.IsPtzEnabled;
         }
 
         private void PtzStop(VlcOverlay overlay)

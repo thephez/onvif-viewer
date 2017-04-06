@@ -20,6 +20,7 @@ namespace SDS.Video
         private int DeviceIndex;
         public string Manufacturer { get; set; }
         public bool IsPtz { get { return OnvifData.IsPtz; } }
+        public bool IsPtzEnabled { get { return OnvifData.IsPtzEnabled; } }
         private bool isConnected = false;
         private bool dataLoaded = false;
 
