@@ -1,4 +1,5 @@
-﻿using RTSP_Viewer.OnvifPtzServiceReference;
+﻿using log4net;
+using RTSP_Viewer.OnvifPtzServiceReference;
 using System;
 
 namespace SDS.Video.Onvif
@@ -12,7 +13,10 @@ namespace SDS.Video.Onvif
         private string Password;
         private PTZClient PtzClient;
         private RTSP_Viewer.OnvifMediaServiceReference.MediaClient MediaClient;
+        private RTSP_Viewer.OnvifMediaServiceReference.Profile MediaProfile { get; set; }
         public bool PtzAvailable { get; private set; } = false;
+
+        private static readonly ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         //public OnvifPtz(string ip, int port)
         //{
@@ -23,18 +27,27 @@ namespace SDS.Video.Onvif
         //    //IsPtz();
         //}
 
-        //public OnvifPtz(string ip, int port, string user, string password)
+        //public OnvifPtz(string mediaUri, string ptzUri, string user = "", string password = "")
         //{
-        //    System.Net.IPAddress.TryParse(ip, out IP);
-        //    Port = port;
         //    User = user;
         //    Password = password;
 
-        //    PtzClient = OnvifServices.GetOnvifPTZClient(IP.ToString(), Port, User, Password);
-        //    MediaClient = OnvifServices.GetOnvifMediaClient(IP.ToString(), Port, User, Password);
+        //    if (string.IsNullOrEmpty(mediaUri) | string.IsNullOrEmpty(ptzUri))
+        //        throw new Exception("Media and/or PTZ URI is empty or null.  PTZ object cannot be created");
+
+        //    PtzClient = OnvifServices.GetOnvifPTZClient(ptzUri, User, Password);
+        //    MediaClient = OnvifServices.GetOnvifMediaClient(mediaUri, User, Password);
         //}
 
-        public OnvifPtz(string mediaUri, string ptzUri, string user = "", string password = "")
+        /// <summary>
+        /// Instantiates PTZ object with known media profile
+        /// </summary>
+        /// <param name="mediaUri"></param>
+        /// <param name="ptzUri"></param>
+        /// <param name="mediaProfile"></param>
+        /// <param name="user"></param>
+        /// <param name="password"></param>
+        public OnvifPtz(string mediaUri, string ptzUri, RTSP_Viewer.OnvifMediaServiceReference.Profile mediaProfile, string user, string password)
         {
             User = user;
             Password = password;
@@ -43,6 +56,9 @@ namespace SDS.Video.Onvif
                 throw new Exception("Media and/or PTZ URI is empty or null.  PTZ object cannot be created");
 
             PtzClient = OnvifServices.GetOnvifPTZClient(ptzUri, User, Password);
+            MediaProfile = mediaProfile;
+
+            // Should be able to remove this once all instantiates go through this constructor (only used by GetMediaProfile - which is only necessary if a mediaProfile is not provided)
             MediaClient = OnvifServices.GetOnvifMediaClient(mediaUri, User, Password);
         }
 
@@ -52,12 +68,25 @@ namespace SDS.Video.Onvif
         /// <returns>Media profile with PTZConfiguration</returns>
         private RTSP_Viewer.OnvifMediaServiceReference.Profile GetMediaProfile()
         {
-            RTSP_Viewer.OnvifMediaServiceReference.Profile[] mediaProfiles = MediaClient.GetProfiles();
-
-            foreach (RTSP_Viewer.OnvifMediaServiceReference.Profile p in mediaProfiles)
+            if (MediaProfile != null)
             {
-                if (p.PTZConfiguration != null)
-                    return MediaClient.GetProfile(p.token);
+                return MediaProfile;
+            }
+            else
+            {
+                log.Info(string.Format("PTZ Media profile not assigned.  Finding first available PTZ-enabled profile - THIS MAY CAUSE ISSUES (commands sent to wrong stream) AND NEEDS TO BE CHANGED"));
+                // If no profile defined, take a guess and select the first available one - THIS NEEDS TO GO AWAY EVENTUALLY
+                RTSP_Viewer.OnvifMediaServiceReference.Profile[] mediaProfiles = MediaClient.GetProfiles();
+
+                foreach (RTSP_Viewer.OnvifMediaServiceReference.Profile p in mediaProfiles)
+                {
+                    if (p.PTZConfiguration != null)
+                    {
+                        // This should eliminate the redundant GetProfiles() / GetProfile() calls that were being done on every command
+                        MediaProfile = MediaClient.GetProfile(p.token);
+                        return MediaProfile; // MediaClient.GetProfile(p.token);
+                    }
+                }
             }
 
             throw new Exception("No media profiles containing a PTZConfiguration on this device");
@@ -147,7 +176,6 @@ namespace SDS.Video.Onvif
             string presetToken = string.Empty;
 
             RTSP_Viewer.OnvifMediaServiceReference.Profile mediaProfile = GetMediaProfile();
-            //Onvif_Interface.OnvifMediaServiceReference.Profile[] mediaProfiles = MediaClient.GetProfiles();
             string profileToken = mediaProfile.token;
 
             PTZPreset[] presets = PtzClient.GetPresets(profileToken);

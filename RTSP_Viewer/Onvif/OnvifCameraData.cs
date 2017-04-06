@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using RTSP_Viewer.OnvifMediaServiceReference;
 using RTSP_Viewer.OnvifDeviceManagementServiceReference;
+using log4net;
 
 namespace SDS.Video.Onvif
 {
@@ -10,9 +11,12 @@ namespace SDS.Video.Onvif
         public Dictionary<string, string> ServiceUris { get; private set; } = new Dictionary<string, string>();
         //public List<string> StreamUris { get; private set; } = new List<string>();
         public string StreamUri { get; set; }
+        public PTZConfiguration StreamPtzConfig { get { return MediaProfile.PTZConfiguration; } }
 
         public bool IsOnvifLoaded { get; private set; } = false;
         public bool IsPtz { get; private set; } = false;
+
+        private static readonly ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         public bool LoadOnvifData(string IP, int onvifPort, string user, string password, StreamType sType, TransportProtocol tProtocol, int streamIndex)  // Probably should be private and done automatically
         {
@@ -77,6 +81,13 @@ namespace SDS.Video.Onvif
 
             StreamUri = uri;
 
+            // A PTZ may not have a PTZ configuration for a particular media profile
+            // Disable PTZ access in that case
+            if (MediaProfile.PTZConfiguration == null && IsPtz)
+            {
+                log.Warn(string.Format("Overriding IsPtz (setting to false) based on stream profile PTZConfiguration being null for {0}", StreamUri));
+                IsPtz = false;
+            }
             //foreach (Profile p in mediaProfiles)
             //{
             //    // Get stream URI for the requested transport/protocol

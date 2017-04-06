@@ -106,7 +106,7 @@ namespace RTSP_Viewer
             {
                 this.Controls.Add(vc);
             }
-            
+
             // Load values from ini file (default to stream 1 if none provided)
             int defaultStream = int.TryParse(getIniValue("DefaultStream"), out defaultStream) ? defaultStream : 1;
             string cameraFile = getIniValue("CameraFile");
@@ -235,7 +235,7 @@ namespace RTSP_Viewer
                     c.BackColor = Color.Gainsboro;
             }
         }
-        
+
         private void InitDebugControls()
         {
             txtUri.Text = "rtsp://127.0.0.1:554/rtsp_tunnel?h26x=4&line=1&inst=1";
@@ -391,8 +391,8 @@ namespace RTSP_Viewer
 
                 // Prepare PTZ object and enable the PTZ functionality on the Overlay if available
                 if (cam.IsPtz)
-                    vlcOverlay[ViewerNum].PtzController = new OnvifPtz(cam.OnvifData.ServiceUris[OnvifNamespace.MEDIA], cam.OnvifData.ServiceUris[OnvifNamespace.PTZ], cam.User, cam.Password);
-                                
+                    vlcOverlay[ViewerNum].PtzController = new OnvifPtz(cam.OnvifData.ServiceUris[OnvifNamespace.MEDIA], cam.OnvifData.ServiceUris[OnvifNamespace.PTZ], cam.OnvifData.MediaProfile, cam.User, cam.Password);
+
                 vlcOverlay[ViewerNum].PtzEnabled = cam.IsPtz;
             }
             catch (Exception ex)
@@ -408,7 +408,7 @@ namespace RTSP_Viewer
                 throw;
             }
         }
-        
+
         private void PtzStop(VlcOverlay overlay)
         {
             // Stop PTZ if moving
