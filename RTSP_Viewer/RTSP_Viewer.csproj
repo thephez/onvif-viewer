@@ -108,6 +108,7 @@
     <Compile Include="Classes\Utilities.cs" />
     <Compile Include="Classes\VlcOverlay.cs" />
     <Compile Include="Classes\VlcViewer.cs" />
+    <Compile Include="Onvif\OnvifCameraData.cs" />
     <Compile Include="Onvif\OnvifNamespace.cs" />
     <Compile Include="Onvif\OnvifPtz.cs" />
     <Compile Include="Onvif\OnvifServices.cs" />

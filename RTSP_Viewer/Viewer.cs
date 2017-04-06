@@ -384,26 +384,14 @@ namespace RTSP_Viewer
             {
                 Camera cam = Camera.GetCamera(CameraNum);
 
-                // Load Onvif data (Service and Stream URIs) if not loaded yet (slow, but only done once - figure out how to improve)
-                if (!cam.IsOnvifLoaded)
-                {
-                    Invoke((Action)(() => { vlcOverlay[ViewerNum].Controls["Status"].Text = "Getting stream"; vlcOverlay[ViewerNum].Controls["Status"].Visible = true; }));
-                    cam.LoadOnvifData(onvifPort: 80, sType: OnvifMediaServiceReference.StreamType.RTPUnicast, tProtocol: OnvifMediaServiceReference.TransportProtocol.RTSP);
-
-                    // Check if this is an Onvif enabled PTZ
-                    if (cam.ServiceUris.ContainsKey(OnvifNamespace.PTZ))
-                        cam.IsPtz = true;
-                    else
-                        cam.IsPtz = false;
-                }
-
                 // Get the Onvif stream URI and callup the camera
-                string URI = cam.GetCameraUri();
+                Invoke((Action)(() => { vlcOverlay[ViewerNum].Controls["Status"].Text = "Getting stream"; vlcOverlay[ViewerNum].Controls["Status"].Visible = true; }));
+                string URI = cam.GetCameraUri(OnvifMediaServiceReference.TransportProtocol.RTSP, OnvifMediaServiceReference.StreamType.RTPUnicast);
                 CameraCallup(URI, ViewerNum);
 
                 // Prepare PTZ object and enable the PTZ functionality on the Overlay if available
                 if (cam.IsPtz)
-                    vlcOverlay[ViewerNum].PtzController = new OnvifPtz(cam.ServiceUris[OnvifNamespace.MEDIA], cam.ServiceUris[OnvifNamespace.PTZ], user: cam.User, password: cam.Password); // "admin", "P@ssw0rd");
+                    vlcOverlay[ViewerNum].PtzController = new OnvifPtz(cam.OnvifData.ServiceUris[OnvifNamespace.MEDIA], cam.OnvifData.ServiceUris[OnvifNamespace.PTZ], cam.User, cam.Password);
                                 
                 vlcOverlay[ViewerNum].PtzEnabled = cam.IsPtz;
             }

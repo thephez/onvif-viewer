@@ -12,7 +12,7 @@ namespace SDS.Video.Onvif
         private string Password;
         private PTZClient PtzClient;
         private RTSP_Viewer.OnvifMediaServiceReference.MediaClient MediaClient;
-        public bool PtzAvailable;
+        public bool PtzAvailable { get; private set; } = false;
 
         //public OnvifPtz(string ip, int port)
         //{
