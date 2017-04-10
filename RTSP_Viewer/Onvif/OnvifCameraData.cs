@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using RTSP_Viewer.OnvifMediaServiceReference;
 using RTSP_Viewer.OnvifDeviceManagementServiceReference;
 using log4net;
@@ -7,11 +8,18 @@ namespace SDS.Video.Onvif
 {
     public class OnvifCameraData
     {
+        /// <summary>
+        /// Maximum time difference (in seconds) allowed between PC and device.  Onvif spec uses 5 seconds
+        /// </summary>
+        private static readonly int MaxTimeOffset = 5;
+
         public Profile MediaProfile { get; set; }
         public Dictionary<string, string> ServiceUris { get; private set; } = new Dictionary<string, string>();
         //public List<string> StreamUris { get; private set; } = new List<string>();
         public string StreamUri { get; set; }
         public PTZConfiguration StreamPtzConfig { get { return MediaProfile.PTZConfiguration; } }
+        public System.DateTime DeviceTime { get; private set; }
+        public System.DateTime LastTimeCheck { get; private set; }
 
         public bool IsOnvifLoaded { get; private set; } = false;
         public bool IsPtz { get; private set; } = false;
@@ -21,6 +29,7 @@ namespace SDS.Video.Onvif
 
         public bool LoadOnvifData(string IP, int onvifPort, string user, string password, StreamType sType, TransportProtocol tProtocol, int streamIndex)  // Probably should be private and done automatically
         {
+            GetDeviceTime(IP, onvifPort);
             GetOnvifUris(IP, 80, user, password);
             GetStreamUris(IP, 80, user, password, sType, tProtocol, streamIndex);
             IsOnvifLoaded = true;
@@ -89,6 +98,34 @@ namespace SDS.Video.Onvif
             {
                 log.Warn(string.Format("Disabling PTZ control based on the PTZConfiguration being null for stream profile {0}", StreamUri));
                 IsPtzEnabled = false;
+            }
+        }
+
+        /// <summary>
+        /// Get the device time. Per spec, the time in the Onvif header must be within 5 seconds of the device time
+        /// Some devices will fail to authenticate or accept commands if the timestamp difference is too great
+        /// </summary>
+        /// <param name="ip">IP Address</param>
+        /// <param name="onvifPort">Port to connect on (normally HTTP - 80)</param>
+        public void GetDeviceTime(string ip, int onvifPort)
+        {
+            DeviceClient client = OnvifServices.GetOnvifDeviceClient(ip, onvifPort);
+            SystemDateTime deviceTime = client.GetSystemDateAndTime();
+            DeviceTime = new System.DateTime(
+                deviceTime.UTCDateTime.Date.Year,
+                deviceTime.UTCDateTime.Date.Month,
+                deviceTime.UTCDateTime.Date.Day,
+                deviceTime.UTCDateTime.Time.Hour,
+                deviceTime.UTCDateTime.Time.Minute,
+                deviceTime.UTCDateTime.Time.Second
+                );
+
+            LastTimeCheck = System.DateTime.UtcNow;
+
+            double timeOffset = Math.Abs((DeviceTime - LastTimeCheck).TotalSeconds);
+            if (timeOffset > MaxTimeOffset)
+            {
+                log.Warn(string.Format("Time difference between PC and client [{0} seconds] exceeds MaxTimeOffset [{1} seconds].  ",timeOffset, MaxTimeOffset));
             }
         }
 
