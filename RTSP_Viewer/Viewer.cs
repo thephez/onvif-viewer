@@ -29,6 +29,7 @@ namespace RTSP_Viewer
         VlcControl[] myVlcControl;
         VlcOverlay[] vlcOverlay;
         Panel statusBg = new Panel();
+        private int ActiveViewer = 0;
 
         OpcUaClient tagClient;
         IniFile MyIni;
@@ -36,6 +37,8 @@ namespace RTSP_Viewer
         ComboBox cbxViewSelect = new ComboBox() { Tag = "Debug", Visible = false };
 
         BackgroundWorker[] BgPtzWorker;
+        System.Timers.Timer ScrollTimer = new System.Timers.Timer();
+        int ScrollVelocity = 0;
 
         public Viewer()
         {
@@ -123,6 +126,16 @@ namespace RTSP_Viewer
                 MessageBox.Show(string.Format("Error starting application.  CameraFile '{0}' and/or CameraSchemaFile '{1}' not found.\nApplication will now exit.", cameraFile, cameraSchema), "Startup failure - Configuration files not found", MessageBoxButtons.OK, MessageBoxIcon.Stop);
                 Environment.Exit(2);
             }
+
+            ScrollTimer.Elapsed += ScrollTimer_Elapsed;
+        }
+
+        private void ScrollTimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            log.Debug(string.Format("Scroll Timer elapsed: stop timer and send stop command to viewer {0}", vlcOverlay[ActiveViewer].Name));
+            ScrollTimer.Enabled = false;
+            ScrollTimer.Stop();
+            PtzStop(vlcOverlay[ActiveViewer]);
         }
 
         /// <summary>
@@ -234,6 +247,8 @@ namespace RTSP_Viewer
                 else
                     c.BackColor = Color.Gainsboro;
             }
+
+            ActiveViewer = activeView;
         }
 
         private void InitDebugControls()
@@ -541,6 +556,8 @@ namespace RTSP_Viewer
                 overlay.PtzEnabled = false;
                 this.Cursor = Cursors.Default;
             }
+
+            ActiveViewer = overlay.TabIndex;
         }
 
         private void VlcOverlay_MouseLeave(object sender, EventArgs e)
@@ -548,13 +565,43 @@ namespace RTSP_Viewer
             // This is a terrible way to make sure the PTZ stops - replace with better solution
             VlcOverlay overlay = (VlcOverlay)sender;
             log.Info(string.Format("Mouse exited view {0} [NOTE: REPLACE PTZ STOP ON EXIT WITH BETTER SOLUTION]", overlay.Name));
+
+            ScrollTimer.Stop();
             PtzStop(overlay);
         }
 
         private void VlcOverlay_MouseWheel(object sender, MouseEventArgs e)
         {
             VlcOverlay overlay = (VlcOverlay)sender;
-            Debug.Print(string.Format("{0} Mouse wheel ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.Name));
+            //Debug.Print(string.Format("{0} Mouse wheel ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.Name));
+            if (ScrollTimer.Enabled)
+            {
+                // Still running (i.e. user didn't stop scrolling)
+                if (e.Delta > 0)
+                {
+                    // Add veloctiy
+                    if (ScrollVelocity > 0)
+                        ScrollVelocity += 1;
+                    else
+                        ScrollVelocity = 1;
+                }
+                else
+                {
+                    // Subtract velocity
+                    if (ScrollVelocity < 0)
+                        ScrollVelocity -= 1;
+                    else
+                        ScrollVelocity = -1;
+                }
+            }
+            else
+            {
+                ScrollVelocity = 0;
+            }
+
+            ScrollTimer.Interval = 600;
+            ScrollTimer.Enabled = true;
+            ScrollTimer.Start();
 
             // Use BackgroundWorker to send command to prevent UI lockup
             if (!BgPtzWorker[overlay.TabIndex].IsBusy)
@@ -628,18 +675,18 @@ namespace RTSP_Viewer
                     if (mouseArgs.Delta > 0)
                     {
                         Debug.Print(string.Format("{0} Zoom in", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")));
-                        overlay.PtzController.Zoom((float)0.20);
+                        overlay.PtzController.Zoom(ScrollVelocity);
                     }
                     else if (mouseArgs.Delta < 0)
                     {
                         Debug.Print(string.Format("{0} Zoom out", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")));
-                        overlay.PtzController.Zoom((float)-0.20);
+                        overlay.PtzController.Zoom(ScrollVelocity); // -20);
                     }
 
                     // Zoom for the sleep duration and then stop (should be a better way to do this)
-                    System.Threading.Thread.Sleep(25);
-                    overlay.PtzController.Stop();
-                    log.Debug(string.Format("Camera Zoom stopped on view {0} [{1}]", overlay.Name, overlay.LastCamUri));
+                    //System.Threading.Thread.Sleep(200);
+                    //overlay.PtzController.Stop();
+                    //log.Debug(string.Format("Camera Zoom stopped on view {0} [{1}]", overlay.Name, overlay.LastCamUri));
                     Debug.Print(string.Format("{0} Camera stopped ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.LastCamUri));
                 }
                 else

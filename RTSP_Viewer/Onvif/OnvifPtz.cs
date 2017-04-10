@@ -105,15 +105,24 @@ namespace SDS.Video.Onvif
         /// Zoom the camera (uses the first media profile that is PTZ capable)
         /// </summary>
         /// <param name="speed">Percent of max speed to move the camera (1-100)</param>
-        public void Zoom(float speed)
+        public void Zoom(int speed)
         {
+            if (speed > 100)
+                speed = 100;
+
+            if (speed < -100)
+                speed = -100;
+
+            log.Debug(string.Format("Zoom @ velocity of {0}", speed));
+
             RTSP_Viewer.OnvifMediaServiceReference.Profile mediaProfile = GetMediaProfile();
             PTZConfigurationOptions ptzConfigurationOptions = PtzClient.GetConfigurationOptions(mediaProfile.PTZConfiguration.token);
-
+            
             PTZSpeed velocity = new PTZSpeed();
-            velocity.Zoom = new Vector1D() { x = speed * ptzConfigurationOptions.Spaces.ContinuousZoomVelocitySpace[0].XRange.Max };
+            velocity.Zoom = new Vector1D() { x = ((float)speed / 100) * ptzConfigurationOptions.Spaces.ContinuousZoomVelocitySpace[0].XRange.Max };
 
-            PtzClient.ContinuousMove(mediaProfile.token, velocity, null);
+            string timeout = null;  //"PT5S";
+            PtzClient.ContinuousMove(mediaProfile.token, velocity, timeout);
         }
 
         /// <summary>
