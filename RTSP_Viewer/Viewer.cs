@@ -565,18 +565,20 @@ namespace RTSP_Viewer
             // This is a terrible way to make sure the PTZ stops - replace with better solution
             VlcOverlay overlay = (VlcOverlay)sender;
             log.Info(string.Format("Mouse exited view {0} [NOTE: REPLACE PTZ STOP ON EXIT WITH BETTER SOLUTION]", overlay.Name));
-
-            ScrollTimer.Stop();
             PtzStop(overlay);
+
+            // Stop scroll wheel timer and reset velocity to zero (to prevent zooming at an unexpected speed in the next view entered)
+            ScrollTimer.Stop();
+            ScrollVelocity = 0;
         }
 
         private void VlcOverlay_MouseWheel(object sender, MouseEventArgs e)
         {
             VlcOverlay overlay = (VlcOverlay)sender;
-            //Debug.Print(string.Format("{0} Mouse wheel ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.Name));
+
             if (ScrollTimer.Enabled)
             {
-                // Still running (i.e. user didn't stop scrolling)
+                // Timer still running (i.e. user didn't stop scrolling)
                 if (e.Delta > 0)
                 {
                     // Add veloctiy
@@ -596,7 +598,11 @@ namespace RTSP_Viewer
             }
             else
             {
-                ScrollVelocity = 0;
+                // Timer already stopped so reset the scroll velocity
+                if (e.Delta > 0)
+                    ScrollVelocity = 5;
+                else if (e.Delta < 0)
+                    ScrollVelocity = -5;
             }
 
             ScrollTimer.Interval = 600;
@@ -672,22 +678,8 @@ namespace RTSP_Viewer
 
                 if (mouseArgs.Delta != 0)
                 {
-                    if (mouseArgs.Delta > 0)
-                    {
-                        Debug.Print(string.Format("{0} Zoom in", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")));
-                        overlay.PtzController.Zoom(ScrollVelocity);
-                    }
-                    else if (mouseArgs.Delta < 0)
-                    {
-                        Debug.Print(string.Format("{0} Zoom out", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")));
-                        overlay.PtzController.Zoom(ScrollVelocity); // -20);
-                    }
-
-                    // Zoom for the sleep duration and then stop (should be a better way to do this)
-                    //System.Threading.Thread.Sleep(200);
-                    //overlay.PtzController.Stop();
-                    //log.Debug(string.Format("Camera Zoom stopped on view {0} [{1}]", overlay.Name, overlay.LastCamUri));
-                    Debug.Print(string.Format("{0} Camera stopped ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.LastCamUri));
+                    // Initiate continuous move zoom.  Stopped by ScrollTimer Elapsed event
+                    overlay.PtzController.Zoom(ScrollVelocity);
                 }
                 else
                 {
@@ -715,28 +707,28 @@ namespace RTSP_Viewer
 
             int x = overlay.Size.Width / 2;
             int y = overlay.Size.Height / 2;
-            string quadrant = "";
+            //string quadrant = "";
 
             int deltaX = e.X - x;
             int deltaY = y - e.Y;
 
-            float radius = (float)Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+            //float radius = (float)Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
             double angle = Math.Atan2(deltaY, deltaX) * (180 / Math.PI);
 
-            if (deltaY >= 0)
-                quadrant = "Top";
-            else
-                quadrant = "Bottom";
+            //if (deltaY >= 0)
+            //    quadrant = "Top";
+            //else
+            //    quadrant = "Bottom";
 
-            if (deltaX >= 0)
-                quadrant += " Right";
-            else
-                quadrant += " Left";
+            //if (deltaX >= 0)
+            //    quadrant += " Right";
+            //else
+            //    quadrant += " Left";
 
             if (overlay.PtzEnabled)
                 this.Cursor = Utilities.GetPtzCursor(angle);
 
-            Invoke((Action)(() => { overlay.Controls["Status"].Text = string.Format("{0}\nMouse @ ({1}, {2})\nPolar: {3:0.#}@{4:0.##}\nCart.: {5},{6}", quadrant, e.Location.X, e.Location.Y, radius, angle, deltaX, deltaY); overlay.Controls["Status"].Visible = true; }));
+            //Invoke((Action)(() => { overlay.Controls["Status"].Text = string.Format("{0}\nMouse @ ({1}, {2})\nPolar: {3:0.#}@{4:0.##}\nCart.: {5},{6}", quadrant, e.Location.X, e.Location.Y, radius, angle, deltaX, deltaY); overlay.Controls["Status"].Visible = true; }));
 
             // Change PTZ command based on mouse position (only if left button down)
             if (e.Button == MouseButtons.Left)
@@ -747,13 +739,11 @@ namespace RTSP_Viewer
                 {
                     Debug.Print(string.Format("{0}           {1}", Math.Abs((overlay.LastMouseArgs.X - e.X)), (overlay.Width * ((float)minMovePercent / 100))));
                     Debug.Print(string.Format("Mouse moved horizontally by more than the minimum percentage [{0}] to [{1}, {2}]", minMovePercent, e.X, e.Y));
-                    //overlay.LastMouseArgs = e;
                 }
                 else if (Math.Abs((overlay.LastMouseArgs.Y - e.Y)) > (overlay.Height * ((float)minMovePercent / 100)))
                 {
                     Debug.Print(string.Format("{0}           {1}", Math.Abs((overlay.LastMouseArgs.Y - e.Y)), (overlay.Height * ((float)minMovePercent / 100))));
                     Debug.Print(string.Format("Mouse moved vertically by more than the minimum percentage [{0}] to [{1}, {2}]", minMovePercent, e.X, e.Y));
-                    //overlay.LastMouseArgs = e;
                 }
                 else
                 {

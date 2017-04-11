@@ -104,7 +104,7 @@ namespace SDS.Video.Onvif
         /// <summary>
         /// Zoom the camera (uses the first media profile that is PTZ capable)
         /// </summary>
-        /// <param name="speed">Percent of max speed to move the camera (1-100)</param>
+        /// <param name="speed">Percent of max speed to move the camera (-100 to 100). Negative zooms out, Positive zooms in</param>
         public void Zoom(int speed)
         {
             if (speed > 100)
