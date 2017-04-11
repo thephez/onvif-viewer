@@ -178,7 +178,8 @@ namespace SDS.Video.Onvif
             }
             else
             {
-                throw new Exception(string.Format("Invalid Preset requested - preset number {0}", presetNumber));
+                log.Warn(string.Format("Preset #{0} not defined for this camera", presetNumber));
+                throw new Exception(string.Format("Preset #{0} not defined for this camera", presetNumber));
             }
         }
 

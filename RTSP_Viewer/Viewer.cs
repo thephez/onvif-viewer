@@ -162,6 +162,7 @@ namespace RTSP_Viewer
 
                 myVlcControl[i] = new VlcControl();
                 vlcOverlay[i] = new VlcOverlay { Name = "VLC Overlay " + i, BackColor = Color.Transparent, TabIndex = i }; //, Parent = myVlcControl[i], Dock = DockStyle.Fill, TabIndex = i };
+                vlcOverlay[i].GotoPtzPreset += Viewer_GotoPtzPreset;
 
                 // Add panel to VlcControl container to capture mouse events
                 Panel MouseEventPanel = new Panel() { Parent = myVlcControl[i], BackColor = Color.Transparent, Dock = DockStyle.Fill, TabIndex = i, };
@@ -429,7 +430,7 @@ namespace RTSP_Viewer
             if (cam.IsPtz && cam.IsPtzEnabled)
                 vlcOverlay[ViewerNum].PtzController = new OnvifPtz(cam.OnvifData.ServiceUris[OnvifNamespace.MEDIA], cam.OnvifData.ServiceUris[OnvifNamespace.PTZ], cam.OnvifData.MediaProfile, cam.User, cam.Password);
 
-            vlcOverlay[ViewerNum].PtzEnabled = cam.IsPtzEnabled;
+            vlcOverlay[ViewerNum].EnablePtzPresets(cam.IsPtzEnabled);
         }
 
         private void PtzStop(VlcOverlay overlay)
@@ -515,6 +516,24 @@ namespace RTSP_Viewer
             }
         }
 
+        private void Viewer_GotoPtzPreset(object sender, PresetEventArgs e)
+        {
+            Panel pan = (Panel)sender;
+            VlcOverlay overlay = vlcOverlay[pan.TabIndex];
+
+            // Check if PTZ and enable PTZ controls if necessary
+            if (overlay.PtzEnabled)
+            {
+                if (overlay.PtzController == null)
+                {
+                    log.Warn(string.Format("No PtzController configured for camera stream [{0}]", overlay.LastCamUri));
+                    throw new Exception(string.Format("No PtzController configured for camera stream [{0}]", overlay.LastCamUri));
+                }
+
+                overlay.PtzController.ShowPreset(e.Preset);
+            }
+        }
+
         private void VlcOverlay_MouseClick(object sender, MouseEventArgs e)
         {
             // Update combobox with selected view
@@ -554,7 +573,7 @@ namespace RTSP_Viewer
             // Select control so the mouse wheel event will go to the proper control
             Panel p = (Panel)sender;
             VlcOverlay overlay = vlcOverlay[p.TabIndex]; // (VlcOverlay)sender;
-            overlay.Select();
+            p.Select();
 
             log.Debug(string.Format("Mouse entered view {0}", overlay.Name));
 

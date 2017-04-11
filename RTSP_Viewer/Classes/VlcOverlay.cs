@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Windows.Forms;
 
 namespace SDS.Video
@@ -25,6 +26,11 @@ namespace SDS.Video
 
         Button[] btnPtzPreset = new Button[5];
 
+        // Define a delegate that acts as a signature for the function that is called when the event is triggered.
+        // The second parameter is of MyEventArgs type. This object will contain information about the triggered event.
+        public delegate void GotoPtzPresetEventHandler(object sender, PresetEventArgs e);
+        public event GotoPtzPresetEventHandler GotoPtzPreset;
+
         public VlcOverlay()
         {
             for (int i = 0; i < btnPtzPreset.Length; i++)
@@ -35,14 +41,14 @@ namespace SDS.Video
                     Text = (i + 1).ToString(),
                     TabIndex = i + 1,
                     BackColor = System.Drawing.Color.Transparent,
-                    Visible = true,
+                    Visible = false,
                     Size = new System.Drawing.Size(20, 20),
                     Location = new System.Drawing.Point((i * 23) + 5, this.Height - 30),
                     Anchor = AnchorStyles.Bottom | AnchorStyles.Left,
                 };
                 btnPtzPreset[i].Click += PtzPreset_Click;
                 btnPtzPreset[i].MouseEnter += PtzPreset_MouseEnter;
-                //Controls.Add(btnPtzPreset[i]);
+                Controls.Add(btnPtzPreset[i]);
             }
         }
 
@@ -54,7 +60,7 @@ namespace SDS.Video
         private void PtzPreset_Click(object sender, System.EventArgs e)
         {
             Button b = (Button)sender;
-            MessageBox.Show("Preset " + b.TabIndex);
+            GotoPtzPreset(this, new PresetEventArgs(b.TabIndex));
         }
 
         /// <summary>
@@ -71,5 +77,32 @@ namespace SDS.Video
             vlc.BringToFront();
             frm.ResumeLayout();
         }
+
+        /// <summary>
+        /// Show / hide Ptz Preset buttons on screen
+        /// </summary>
+        /// <param name="enable">True to enable (display) buttons</param>
+        public void EnablePtzPresets(bool enable)
+        {
+            PtzEnabled = enable;
+            foreach (Button b in btnPtzPreset)
+            {
+                b.Invoke((Action)(() => { b.Visible = enable; }));
+            }
+        }
+    }
+}
+
+public class PresetEventArgs : EventArgs
+{
+    public int Preset { get; }
+    public PresetEventArgs(int preset)
+    {
+        Preset = preset;
+    }
+
+    public int GetPreset()
+    {
+        return Preset;
     }
 }
