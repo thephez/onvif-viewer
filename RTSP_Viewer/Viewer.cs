@@ -105,9 +105,12 @@ namespace RTSP_Viewer
             InitViewerStatus();
             InitDebugControls();
 
-            foreach (VlcControl vc in myVlcControl)
+            foreach (VlcOverlay vo in vlcOverlay)
             {
-                this.Controls.Add(vc);
+                // Make VlcControl fill overlay, associate each with the correct overlay, and add overlay to the form
+                myVlcControl[vo.TabIndex].Dock = DockStyle.Fill;
+                vo.Controls.Add(myVlcControl[vo.TabIndex]);
+                this.Controls.Add(vo);
             }
 
             // Load values from ini file (default to stream 1 if none provided)
@@ -158,15 +161,18 @@ namespace RTSP_Viewer
                 BgPtzWorker[i].DoWork += BgPtzWorker_DoWork;
 
                 myVlcControl[i] = new VlcControl();
-                vlcOverlay[i] = new VlcOverlay { Name = "VLC Overlay " + i, BackColor = Color.Transparent, Parent = myVlcControl[i], Dock = DockStyle.Fill, TabIndex = i };
-                vlcOverlay[i].MouseEnter += VlcOverlay_MouseEnter;
-                vlcOverlay[i].MouseLeave += VlcOverlay_MouseLeave;
-                vlcOverlay[i].MouseDoubleClick += VlcOverlay_MouseDoubleClick;
-                vlcOverlay[i].MouseClick += VlcOverlay_MouseClick;
-                vlcOverlay[i].MouseMove += VlcOverlay_MouseMove;
-                vlcOverlay[i].MouseDown += VlcOverlay_MouseDown;
-                vlcOverlay[i].MouseUp += VlcOverlay_MouseUp;
-                vlcOverlay[i].MouseWheel += VlcOverlay_MouseWheel;
+                vlcOverlay[i] = new VlcOverlay { Name = "VLC Overlay " + i, BackColor = Color.Transparent, TabIndex = i }; //, Parent = myVlcControl[i], Dock = DockStyle.Fill, TabIndex = i };
+
+                // Add panel to VlcControl container to capture mouse events
+                Panel MouseEventPanel = new Panel() { Parent = myVlcControl[i], BackColor = Color.Transparent, Dock = DockStyle.Fill, TabIndex = i, };
+                MouseEventPanel.MouseEnter += VlcOverlay_MouseEnter;
+                MouseEventPanel.MouseLeave += VlcOverlay_MouseLeave;
+                MouseEventPanel.MouseDoubleClick += VlcOverlay_MouseDoubleClick;
+                MouseEventPanel.MouseClick += VlcOverlay_MouseClick;
+                MouseEventPanel.MouseMove += VlcOverlay_MouseMove;
+                MouseEventPanel.MouseDown += VlcOverlay_MouseDown;
+                MouseEventPanel.MouseUp += VlcOverlay_MouseUp;
+                MouseEventPanel.MouseWheel += VlcOverlay_MouseWheel;
                 vlcOverlay[i].Controls.Add(new Label { Name = "Status", Visible = false, Text = "", AutoSize = true, ForeColor = Color.White, Anchor = AnchorStyles.Top | AnchorStyles.Left });
 
                 ((System.ComponentModel.ISupportInitialize)(myVlcControl[i])).BeginInit();
@@ -178,13 +184,14 @@ namespace RTSP_Viewer
                 myVlcControl[i].Rate = (float)0.0;
                 myVlcControl[i].BackColor = Color.Gray;
                 myVlcControl[i].TabIndex = i;
+                //myVlcControl[i].MouseDoubleClick += VlcOverlay_MouseDoubleClick;
 
                 // Events
                 myVlcControl[i].Playing += OnVlcPlaying;
                 myVlcControl[i].EncounteredError += MyVlcControl_EncounteredError;
                 myVlcControl[i].Buffering += Form1_Buffering;
 
-                myVlcControl[i].Controls.Add(vlcOverlay[i]);
+                //myVlcControl[i].Controls.Add(vlcOverlay[i]);
                 // Had to add this line to make work
                 ((System.ComponentModel.ISupportInitialize)(myVlcControl[i])).EndInit();
             }
@@ -358,8 +365,8 @@ namespace RTSP_Viewer
 
             for (int i = 0; i < NumberOfViews; i++)
             {
-                myVlcControl[i].Location = displayPoint[i];
-                myVlcControl[i].Size = displaySize;
+                vlcOverlay[i].Location = displayPoint[i];
+                vlcOverlay[i].Size = displaySize;
             }
 
             ResumeLayout();
@@ -442,11 +449,11 @@ namespace RTSP_Viewer
         private void SetVlcFullView(int viewerIndex)
         {
             log.Info(string.Format("Display full screen layout (View #{0})", viewerIndex));
-            foreach (VlcControl vlc in myVlcControl)
+            foreach (VlcOverlay vlc in vlcOverlay)
             {
                 if (vlc.TabIndex == viewerIndex)
                 {
-                    VlcViewer.SetVlcFullView(this, vlc);
+                    VlcOverlay.SetFullView(this, vlc);
                     statusBg.Visible = true;
                     statusBg.BringToFront();
                     SetViewerStatus(viewerIndex);
@@ -526,7 +533,7 @@ namespace RTSP_Viewer
         private void VlcOverlay_MouseDoubleClick(object sender, EventArgs e)
         {
             Panel overlay = (Panel)sender;
-            VlcControl vlc = (VlcControl)overlay.Parent;
+            VlcControl vlc = myVlcControl[overlay.TabIndex]; // (VlcControl)overlay.Parent;
             this.SuspendLayout();
             if (vlc.Width >= this.ClientSize.Width)
             {
@@ -535,7 +542,7 @@ namespace RTSP_Viewer
             }
             else
             {
-                VlcViewer.SetVlcFullView(this, vlc);
+                VlcOverlay.SetFullView(this, vlcOverlay[vlc.TabIndex]);
                 statusBg.Visible = true;
                 statusBg.BringToFront();
             }
@@ -545,7 +552,8 @@ namespace RTSP_Viewer
         private void VlcOverlay_MouseEnter(object sender, EventArgs e)
         {
             // Select control so the mouse wheel event will go to the proper control
-            VlcOverlay overlay = (VlcOverlay)sender;
+            Panel p = (Panel)sender;
+            VlcOverlay overlay = vlcOverlay[p.TabIndex]; // (VlcOverlay)sender;
             overlay.Select();
 
             log.Debug(string.Format("Mouse entered view {0}", overlay.Name));
@@ -563,7 +571,8 @@ namespace RTSP_Viewer
         private void VlcOverlay_MouseLeave(object sender, EventArgs e)
         {
             // This is a terrible way to make sure the PTZ stops - replace with better solution
-            VlcOverlay overlay = (VlcOverlay)sender;
+            Panel p = (Panel)sender;
+            VlcOverlay overlay = vlcOverlay[p.TabIndex]; // (VlcOverlay)sender;
             log.Info(string.Format("Mouse exited view {0} [NOTE: REPLACE PTZ STOP ON EXIT WITH BETTER SOLUTION]", overlay.Name));
             PtzStop(overlay);
 
@@ -574,7 +583,8 @@ namespace RTSP_Viewer
 
         private void VlcOverlay_MouseWheel(object sender, MouseEventArgs e)
         {
-            VlcOverlay overlay = (VlcOverlay)sender;
+            Panel p = (Panel)sender;
+            VlcOverlay overlay = vlcOverlay[p.TabIndex]; // (VlcOverlay)sender;
 
             if (ScrollTimer.Enabled)
             {
@@ -623,7 +633,8 @@ namespace RTSP_Viewer
 
         private void VlcOverlay_MouseDown(object sender, MouseEventArgs e)
         {
-            VlcOverlay overlay = (VlcOverlay)sender;
+            Panel p = (Panel)sender;
+            VlcOverlay overlay = vlcOverlay[p.TabIndex]; // (VlcOverlay)sender;
             Debug.Print(string.Format("{0} Mouse down ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.Name));
             log.Debug(string.Format("Mouse down on view {0}", overlay.Name));
 
@@ -641,7 +652,8 @@ namespace RTSP_Viewer
 
         private void VlcOverlay_MouseUp(object sender, MouseEventArgs e)
         {
-            VlcOverlay overlay = (VlcOverlay)sender;
+            Panel p = (Panel)sender;
+            VlcOverlay overlay = vlcOverlay[p.TabIndex]; // (VlcOverlay)sender;
 
             // Attempt to prevent unstopping PTZ (stop send before PTZ?)
             BgPtzWorker[overlay.TabIndex].CancelAsync();
@@ -699,7 +711,8 @@ namespace RTSP_Viewer
 
         private void VlcOverlay_MouseMove(object sender, MouseEventArgs e)
         {
-            VlcOverlay overlay = (VlcOverlay)sender;
+            Panel p = (Panel)sender;
+            VlcOverlay overlay = vlcOverlay[p.TabIndex]; // (VlcOverlay)sender;
 
             int minMovePercent = 2;
             if (overlay.LastMouseArgs == null)

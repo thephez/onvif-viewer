@@ -74,7 +74,7 @@ namespace SDS.Video.Onvif
         /// <summary>
         /// Pan the camera (uses the first media profile that is PTZ capable)
         /// </summary>
-        /// <param name="speed">Percent of max speed to move the camera (1-100)</param>
+        /// <param name="speed">Percent of max speed to move the camera (-1.00 to 1.00)</param>
         public void Pan(float speed)
         {
             RTSP_Viewer.OnvifMediaServiceReference.Profile mediaProfile = GetMediaProfile();
@@ -89,7 +89,7 @@ namespace SDS.Video.Onvif
         /// <summary>
         /// Tilt the camera (uses the first media profile that is PTZ capable)
         /// </summary>
-        /// <param name="speed">Percent of max speed to move the camera (1-100)</param>
+        /// <param name="speed">Percent of max speed to move the camera (-1.00 to 1.00)</param>
         public void Tilt(float speed)
         {
             RTSP_Viewer.OnvifMediaServiceReference.Profile mediaProfile = GetMediaProfile();
@@ -128,8 +128,8 @@ namespace SDS.Video.Onvif
         /// <summary>
         /// Combined Pan and Tilt of the camera (uses the first media profile that is PTZ capable)
         /// </summary>
-        /// <param name="panSpeed">Percent of max speed to move the camera (0.01-1.00)</param>
-        /// <param name="tiltSpeed">Percent of max speed to move the camera (0.01-1.00)</param>
+        /// <param name="panSpeed">Percent of max speed to move the camera (-1.00 to 1.00)</param>
+        /// <param name="tiltSpeed">Percent of max speed to move the camera (-1.00 to 1.00)</param>
         public void PanTilt(float panSpeed, float tiltSpeed)
         {
             RTSP_Viewer.OnvifMediaServiceReference.Profile mediaProfile = GetMediaProfile();
