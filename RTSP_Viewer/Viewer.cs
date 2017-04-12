@@ -174,7 +174,6 @@ namespace RTSP_Viewer
                 MouseEventPanel.MouseDown += VlcOverlay_MouseDown;
                 MouseEventPanel.MouseUp += VlcOverlay_MouseUp;
                 MouseEventPanel.MouseWheel += VlcOverlay_MouseWheel;
-                vlcOverlay[i].Controls.Add(new Label { Name = "Status", Visible = false, Text = "", AutoSize = true, ForeColor = Color.White, Anchor = AnchorStyles.Top | AnchorStyles.Left });
 
                 ((System.ComponentModel.ISupportInitialize)(myVlcControl[i])).BeginInit();
 
@@ -383,7 +382,8 @@ namespace RTSP_Viewer
             log.Debug(string.Format("Camera callup for view {0} [{1}]", ViewerNum, URI));
             if (ViewerNum >= 0)
             {
-                Invoke((Action)(() => { vlcOverlay[ViewerNum].Controls["Status"].Text = "Loading"; vlcOverlay[ViewerNum].Controls["Status"].Visible = true; }));
+                vlcOverlay[ViewerNum].ShowNotification("Loading...");
+
                 myVlcControl[ViewerNum].Play(new Uri(URI), "");
                 myVlcControl[ViewerNum].BackColor = Color.Black;
                 Debug.Print(myVlcControl[ViewerNum].State.ToString());
@@ -407,7 +407,7 @@ namespace RTSP_Viewer
 
             try
             {
-                Invoke((Action)(() => { vlcOverlay[ViewerNum].Controls["Status"].Text = "Getting stream"; vlcOverlay[ViewerNum].Controls["Status"].Visible = true; }));
+                vlcOverlay[ViewerNum].ShowNotification("Getting stream");
 
                 // Get the Onvif stream URI and callup the camera
                 cam = Camera.GetCamera(CameraNum);
@@ -422,13 +422,25 @@ namespace RTSP_Viewer
                 myVlcControl[ViewerNum].BackColor = Color.Gray;
 
                 string status = string.Format("Camera #{0} unavailable", CameraNum);
-                Invoke((Action)(() => { vlcOverlay[ViewerNum].Controls["Status"].Text = status; vlcOverlay[ViewerNum].Controls["Status"].Visible = true; }));
+                vlcOverlay[ViewerNum].ShowNotification(status);
                 throw;
             }
 
-            // Prepare PTZ object and enable the PTZ functionality on the Overlay if available
+            // Prepare PTZ object, enable the PTZ functionality on the Overlay if available, and go to preset
             if (cam.IsPtz && cam.IsPtzEnabled)
+            {
                 vlcOverlay[ViewerNum].PtzController = new OnvifPtz(cam.OnvifData.ServiceUris[OnvifNamespace.MEDIA], cam.OnvifData.ServiceUris[OnvifNamespace.PTZ], cam.OnvifData.MediaProfile, cam.User, cam.Password);
+                                
+                if (Preset > 0)
+                    try
+                    {
+                        vlcOverlay[ViewerNum].PtzController.ShowPreset(Preset);
+                    }
+                    catch (IndexOutOfRangeException)
+                    {
+                        vlcOverlay[ViewerNum].ShowNotification(string.Format("Preset #{0} undefined", Preset), 3000);
+                    }
+            }
 
             vlcOverlay[ViewerNum].EnablePtzPresets(cam.IsPtzEnabled);
         }
@@ -492,7 +504,7 @@ namespace RTSP_Viewer
         private void PlayBtn_Click(object sender, EventArgs e)
         {
             CameraCallup(this.txtUri.Text, cbxViewSelect.SelectedIndex);
-            vlcOverlay[cbxViewSelect.SelectedIndex].PtzEnabled = true;  // Temporary for testing
+            vlcOverlay[cbxViewSelect.SelectedIndex].EnablePtzPresets(true); // Temporary for testing
         }
 
         private void BtnLoadLast_Click(object sender, EventArgs e)
@@ -530,7 +542,14 @@ namespace RTSP_Viewer
                     throw new Exception(string.Format("No PtzController configured for camera stream [{0}]", overlay.LastCamUri));
                 }
 
-                overlay.PtzController.ShowPreset(e.Preset);
+                try
+                {
+                    overlay.PtzController.ShowPreset(e.Preset);
+                }
+                catch (IndexOutOfRangeException)
+                {
+                    overlay.ShowNotification(string.Format("Preset #{0} undefined", e.Preset), 3000);
+                }
             }
         }
 
@@ -801,7 +820,8 @@ namespace RTSP_Viewer
         private void MyVlcControl_EncounteredError(object sender, Vlc.DotNet.Core.VlcMediaPlayerEncounteredErrorEventArgs e)
         {
             VlcControl vlc = (VlcControl)sender;
-            Invoke((Action)(() => { vlcOverlay[int.Parse(vlc.Name.Split()[2])].Controls["Status"].Text = "Error"; Visible = true; }));
+            vlcOverlay[int.Parse(vlc.Name.Split()[2])].ShowNotification("Error");
+
             log.Error(string.Format("Error encountered on '{0}': {1}", vlc.Name, e.ToString()));
 
             //MessageBox.Show(string.Format("Error encountered on '{0}':\n{1}", vlc.Name, e.ToString()), "VLC Control Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -813,7 +833,7 @@ namespace RTSP_Viewer
             VlcControl vlc = (VlcControl)sender;
             vlc.UseWaitCursor = false;
 
-            Invoke((Action)(() => { vlcOverlay[int.Parse(vlc.Name.Split()[2])].Controls["Status"].Visible = false; }));
+            vlcOverlay[int.Parse(vlc.Name.Split()[2])].HideNotification();
 
             var mediaInformations = vlc.GetCurrentMedia().TracksInformations;
             foreach (var mediaInformation in mediaInformations)
