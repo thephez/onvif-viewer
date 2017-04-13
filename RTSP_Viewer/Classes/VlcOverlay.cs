@@ -1,7 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Windows.Forms;
 using System.Drawing;
+using log4net;
 
 namespace SDS.Video
 {
@@ -14,8 +14,8 @@ namespace SDS.Video
         public bool PtzEnabled { get; set; } = false;
         public int LastCamNum { get; set; }
         public string LastCamUri { get; set; }
-        private System.Timers.Timer MsgDisplayTimer = new System.Timers.Timer();
-        
+        public int ScrollSpeed { get; private set; } = 0;
+
         /// <summary>
         /// Used to store the mouse location when the last command was sent
         /// </summary>
@@ -26,12 +26,16 @@ namespace SDS.Video
         /// </summary>
         public Onvif.OnvifPtz PtzController { get; set; }
 
-        private Button[] btnPtzPreset = new Button[5];
-
         // Define a delegate that acts as a signature for the function that is called when the event is triggered.
         // The second parameter is of MyEventArgs type. This object will contain information about the triggered event.
         public delegate void GotoPtzPresetEventHandler(object sender, PresetEventArgs e);
         public event GotoPtzPresetEventHandler GotoPtzPreset;
+
+        private System.Timers.Timer MsgDisplayTimer = new System.Timers.Timer();
+        private System.Timers.Timer ScrollTimer = new System.Timers.Timer();
+        private Button[] btnPtzPreset = new Button[5];
+
+        private static readonly ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         public VlcOverlay()
         {
@@ -57,6 +61,8 @@ namespace SDS.Video
                 Controls.Add(new Label { Name = "Status", Visible = false, Text = "", AutoSize = true, ForeColor = Color.White, BackColor = Color.Black, Anchor = AnchorStyles.Top | AnchorStyles.Left });
                 MsgDisplayTimer.Elapsed += MsgDisplayTimer_Elapsed;
             }
+
+            ScrollTimer.Elapsed += ScrollTimer_Elapsed;
         }
 
         private void PtzPreset_MouseEnter(object sender, System.EventArgs e)
@@ -133,6 +139,57 @@ namespace SDS.Video
         {
             Invoke((Action)(() => { Controls["Status"].Visible = false; }));
             MsgDisplayTimer.Stop();
+        }
+
+        private void ScrollTimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            log.Debug(string.Format("Scroll Timer elapsed: stop timer and send stop command to viewer"));
+            Console.WriteLine(string.Format("Scroll Timer elapsed: stop timer and send stop command to viewer {0}", this.Name));
+            ScrollTimer.Enabled = false;
+            ScrollTimer.Stop();
+
+            if (PtzController != null)
+                this.PtzController.Stop();
+        }
+
+        /// <summary>
+        /// Adjusts the zoom speed based on the direction of the mouse scroll wheel
+        /// </summary>
+        /// <param name="e"></param>
+        public void SetZoomSpeed(MouseEventArgs e)
+        {
+            if (ScrollTimer.Enabled)
+            {
+                // Timer still running (i.e. user didn't stop scrolling)
+                if (e.Delta > 0)
+                {
+                    // Add veloctiy
+                    if (ScrollSpeed > 0)
+                        ScrollSpeed += 1;
+                    else
+                        ScrollSpeed = 1;
+                }
+                else
+                {
+                    // Subtract velocity
+                    if (ScrollSpeed < 0)
+                        ScrollSpeed -= 1;
+                    else
+                        ScrollSpeed = -1;
+                }
+            }
+            else
+            {
+                // Timer already stopped so reset the scroll velocity
+                if (e.Delta > 0)
+                    ScrollSpeed = 5;
+                else if (e.Delta < 0)
+                    ScrollSpeed = -5;
+            }
+
+            ScrollTimer.Interval = 600;
+            ScrollTimer.Enabled = true;
+            ScrollTimer.Start();
         }
     }
 }

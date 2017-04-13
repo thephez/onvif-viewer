@@ -37,8 +37,6 @@ namespace RTSP_Viewer
         ComboBox cbxViewSelect = new ComboBox() { Tag = "Debug", Visible = false };
 
         BackgroundWorker[] BgPtzWorker;
-        System.Timers.Timer ScrollTimer = new System.Timers.Timer();
-        int ScrollVelocity = 0;
 
         public Viewer()
         {
@@ -129,16 +127,6 @@ namespace RTSP_Viewer
                 MessageBox.Show(string.Format("Error starting application.  CameraFile '{0}' and/or CameraSchemaFile '{1}' not found.\nApplication will now exit.", cameraFile, cameraSchema), "Startup failure - Configuration files not found", MessageBoxButtons.OK, MessageBoxIcon.Stop);
                 Environment.Exit(2);
             }
-
-            ScrollTimer.Elapsed += ScrollTimer_Elapsed;
-        }
-
-        private void ScrollTimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
-        {
-            log.Debug(string.Format("Scroll Timer elapsed: stop timer and send stop command to viewer {0}", vlcOverlay[ActiveViewer].Name));
-            ScrollTimer.Enabled = false;
-            ScrollTimer.Stop();
-            PtzStop(vlcOverlay[ActiveViewer]);
         }
 
         /// <summary>
@@ -613,49 +601,15 @@ namespace RTSP_Viewer
             VlcOverlay overlay = vlcOverlay[p.TabIndex]; // (VlcOverlay)sender;
             log.Info(string.Format("Mouse exited view {0} [NOTE: REPLACE PTZ STOP ON EXIT WITH BETTER SOLUTION]", overlay.Name));
             PtzStop(overlay);
-
-            // Stop scroll wheel timer and reset velocity to zero (to prevent zooming at an unexpected speed in the next view entered)
-            ScrollTimer.Stop();
-            ScrollVelocity = 0;
         }
 
         private void VlcOverlay_MouseWheel(object sender, MouseEventArgs e)
         {
             Panel p = (Panel)sender;
-            VlcOverlay overlay = vlcOverlay[p.TabIndex]; // (VlcOverlay)sender;
+            VlcOverlay overlay = vlcOverlay[p.TabIndex];
 
-            if (ScrollTimer.Enabled)
-            {
-                // Timer still running (i.e. user didn't stop scrolling)
-                if (e.Delta > 0)
-                {
-                    // Add veloctiy
-                    if (ScrollVelocity > 0)
-                        ScrollVelocity += 1;
-                    else
-                        ScrollVelocity = 1;
-                }
-                else
-                {
-                    // Subtract velocity
-                    if (ScrollVelocity < 0)
-                        ScrollVelocity -= 1;
-                    else
-                        ScrollVelocity = -1;
-                }
-            }
-            else
-            {
-                // Timer already stopped so reset the scroll velocity
-                if (e.Delta > 0)
-                    ScrollVelocity = 5;
-                else if (e.Delta < 0)
-                    ScrollVelocity = -5;
-            }
-
-            ScrollTimer.Interval = 600;
-            ScrollTimer.Enabled = true;
-            ScrollTimer.Start();
+            // Have overlay process mouse change
+            overlay.SetZoomSpeed(e);
 
             // Use BackgroundWorker to send command to prevent UI lockup
             if (!BgPtzWorker[overlay.TabIndex].IsBusy)
@@ -729,7 +683,7 @@ namespace RTSP_Viewer
                 if (mouseArgs.Delta != 0)
                 {
                     // Initiate continuous move zoom.  Stopped by ScrollTimer Elapsed event
-                    overlay.PtzController.Zoom(ScrollVelocity);
+                    overlay.PtzController.Zoom(overlay.ScrollSpeed);
                 }
                 else
                 {
