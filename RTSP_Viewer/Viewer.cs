@@ -847,6 +847,24 @@ namespace RTSP_Viewer
                     }
                     break;
             }
+
+            // Call preset if number key pressed
+            if (char.IsDigit((char)e.KeyCode) && vlcOverlay[ActiveViewer].PtzController != null)
+            {
+                int preset = (int)e.KeyValue - (int)Keys.D0;
+                if (preset > 0)
+                {
+                    vlcOverlay[ActiveViewer].ShowNotification(string.Format("Preset {0}", preset), 2000);
+                    try
+                    {
+                        vlcOverlay[ActiveViewer].PtzController.ShowPreset(preset);
+                    }
+                    catch (IndexOutOfRangeException)
+                    {
+                        vlcOverlay[ActiveViewer].ShowNotification(string.Format("Preset #{0} undefined", preset), 3000);
+                    }
+                }
+            }
         }
 
         private void Form1_ResizeEnd(object sender, EventArgs e)
