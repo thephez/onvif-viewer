@@ -161,7 +161,7 @@ namespace RTSP_Viewer
                 BgPtzWorker[i].DoWork += BgPtzWorker_DoWork;
 
                 myVlcControl[i] = new VlcControl();
-                vlcOverlay[i] = new VlcOverlay { Name = "VLC Overlay " + i, BackColor = Color.Transparent, TabIndex = i }; //, Parent = myVlcControl[i], Dock = DockStyle.Fill, TabIndex = i };
+                vlcOverlay[i] = new VlcOverlay() { Name = "VLC Overlay " + i, BackColor = Color.Transparent, TabIndex = i }; //, Parent = myVlcControl[i], Dock = DockStyle.Fill, TabIndex = i };
                 vlcOverlay[i].GotoPtzPreset += Viewer_GotoPtzPreset;
 
                 // Add panel to VlcControl container to capture mouse events
@@ -429,7 +429,7 @@ namespace RTSP_Viewer
             // Prepare PTZ object, enable the PTZ functionality on the Overlay if available, and go to preset
             if (cam.IsPtz && cam.IsPtzEnabled)
             {
-                vlcOverlay[ViewerNum].PtzController = new OnvifPtz(cam.OnvifData.ServiceUris[OnvifNamespace.MEDIA], cam.OnvifData.ServiceUris[OnvifNamespace.PTZ], cam.OnvifData.MediaProfile, cam.User, cam.Password);
+                vlcOverlay[ViewerNum].PtzController = new OnvifPtz(cam.OnvifData.ServiceUris[OnvifNamespace.MEDIA], cam.OnvifData.ServiceUris[OnvifNamespace.PTZ], cam.OnvifData.DeviceTimeOffset, cam.OnvifData.MediaProfile, cam.User, cam.Password);
                                 
                 if (Preset > 0)
                     try

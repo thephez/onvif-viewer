@@ -63,10 +63,6 @@
       <Private>True</Private>
       <EmbedInteropTypes>False</EmbedInteropTypes>
     </Reference>
-    <Reference Include="Microsoft.Web.Services3, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>C:\Program Files (x86)\Microsoft WSE\v3.0\Microsoft.Web.Services3.dll</HintPath>
-    </Reference>
     <Reference Include="OPCUA_Integration_Core_full">
       <HintPath>.\OPCUA_Integration_Core_full.dll</HintPath>
       <Private>True</Private>
@@ -75,6 +71,7 @@
     <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing.Design" />
+    <Reference Include="System.IdentityModel" />
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.ServiceModel" />
     <Reference Include="System.Xml.Linq" />
@@ -113,6 +110,8 @@
     <Compile Include="Onvif\OnvifNamespace.cs" />
     <Compile Include="Onvif\OnvifPtz.cs" />
     <Compile Include="Onvif\OnvifServices.cs" />
+    <Compile Include="WebServices\UsernameInfo.cs" />
+    <Compile Include="WebServices\UsernameToken.cs" />
     <Compile Include="WebServices\WsPasswordDigest.cs" />
     <Compile Include="Overlay.cs">
       <SubType>Form</SubType>

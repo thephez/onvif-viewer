@@ -15,11 +15,11 @@ namespace SDS.Video.Onvif
 
         public Profile MediaProfile { get; set; }
         public Dictionary<string, string> ServiceUris { get; private set; } = new Dictionary<string, string>();
-        //public List<string> StreamUris { get; private set; } = new List<string>();
         public string StreamUri { get; set; }
         public PTZConfiguration StreamPtzConfig { get { return MediaProfile.PTZConfiguration; } }
-        public System.DateTime DeviceTime { get; private set; }
+        private System.DateTime DeviceTime { get; set; }
         public System.DateTime LastTimeCheck { get; private set; }
+        public double DeviceTimeOffset { get; private set; }
 
         public bool IsOnvifLoaded { get; private set; } = false;
         public bool IsPtz { get; private set; } = false;
@@ -48,7 +48,7 @@ namespace SDS.Video.Onvif
         {
             ServiceUris.Clear();
 
-            DeviceClient client = OnvifServices.GetOnvifDeviceClient(ip, onvifPort, user, password);
+            DeviceClient client = OnvifServices.GetOnvifDeviceClient(ip, onvifPort, DeviceTimeOffset, user, password);
             Service[] svc = client.GetServices(IncludeCapability: false); // Bosch Autodome 800 response can't be deserialized if IncludeCapability enabled
             foreach (Service s in svc)
             {
@@ -69,7 +69,7 @@ namespace SDS.Video.Onvif
         private void GetStreamUris(string ip, int onvifPort, string user, string password, StreamType sType, TransportProtocol tProtocol, int StreamIndex)
         {
             //StreamUris.Clear();
-            MediaClient mc = OnvifServices.GetOnvifMediaClient(ServiceUris[OnvifNamespace.MEDIA], user, password);
+            MediaClient mc = OnvifServices.GetOnvifMediaClient(ServiceUris[OnvifNamespace.MEDIA], DeviceTimeOffset, user, password);
             Profile[] mediaProfiles = mc.GetProfiles();
 
             StreamSetup ss = new StreamSetup();
@@ -109,7 +109,7 @@ namespace SDS.Video.Onvif
         /// <param name="onvifPort">Port to connect on (normally HTTP - 80)</param>
         public void GetDeviceTime(string ip, int onvifPort)
         {
-            DeviceClient client = OnvifServices.GetOnvifDeviceClient(ip, onvifPort);
+            DeviceClient client = OnvifServices.GetOnvifDeviceClient(ip, onvifPort, deviceTimeOffset: 0);
             SystemDateTime deviceTime = client.GetSystemDateAndTime();
             DeviceTime = new System.DateTime(
                 deviceTime.UTCDateTime.Date.Year,
@@ -122,10 +122,10 @@ namespace SDS.Video.Onvif
 
             LastTimeCheck = System.DateTime.UtcNow;
 
-            double timeOffset = Math.Abs((DeviceTime - LastTimeCheck).TotalSeconds);
-            if (timeOffset > MaxTimeOffset)
+            DeviceTimeOffset = (DeviceTime - LastTimeCheck).TotalSeconds;
+            if (Math.Abs(DeviceTimeOffset) > MaxTimeOffset)
             {
-                log.Warn(string.Format("Time difference between PC and client [{0} seconds] exceeds MaxTimeOffset [{1} seconds].  ",timeOffset, MaxTimeOffset));
+                log.Warn(string.Format("Time difference between PC and client [{0:0.0} seconds] exceeds MaxTimeOffset [{1:0.0} seconds].  ", DeviceTimeOffset, MaxTimeOffset));
             }
         }
 
