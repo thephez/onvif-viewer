@@ -15,6 +15,7 @@ namespace SDS.Video.Onvif
         private RTSP_Viewer.OnvifMediaServiceReference.MediaClient MediaClient;
         private RTSP_Viewer.OnvifMediaServiceReference.Profile MediaProfile { get; set; }
         public bool PtzAvailable { get; private set; } = false;
+        private PTZPreset[] Presets;
 
         private static readonly ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -166,7 +167,13 @@ namespace SDS.Video.Onvif
             RTSP_Viewer.OnvifMediaServiceReference.Profile mediaProfile = GetMediaProfile();
             string profileToken = mediaProfile.token;
 
-            PTZPreset[] presets = PtzClient.GetPresets(profileToken);
+            // This could be used to cache presets to avoid unecessary HTTP requests
+            // This could also cause an issue when presets are modified so it is not used currently
+            //if (Presets == null)
+            //    Presets = PtzClient.GetPresets(profileToken);
+
+            Presets = PtzClient.GetPresets(profileToken);
+            PTZPreset[] presets = Presets; // PtzClient.GetPresets(profileToken);
             if (presets.Length >= presetNumber)
             {
                 presetToken = presets[presetNumber - 1].token;
@@ -179,13 +186,15 @@ namespace SDS.Video.Onvif
             else
             {
                 log.Warn(string.Format("Preset #{0} not defined for this camera", presetNumber));
-                throw new Exception(string.Format("Preset #{0} not defined for this camera", presetNumber));
+                throw new IndexOutOfRangeException(string.Format("Preset #{0} not defined for this camera", presetNumber));
             }
         }
 
         public bool IsValidPresetToken(string profileToken, string presetToken)
         {
-            PTZPreset[] presets = PtzClient.GetPresets(profileToken);
+            Presets = PtzClient.GetPresets(profileToken);
+
+            PTZPreset[] presets = Presets;
             foreach (PTZPreset p in presets)
             {
                 if (p.token == presetToken)
