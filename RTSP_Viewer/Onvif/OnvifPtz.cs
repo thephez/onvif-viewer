@@ -7,14 +7,16 @@ namespace SDS.Video.Onvif
 
     public class OnvifPtz
     {
-        //private System.Net.IPAddress IP;
-        //private int Port;
         private string User;
         private string Password;
         private PTZClient PtzClient;
         private RTSP_Viewer.OnvifMediaServiceReference.MediaClient MediaClient;
         private RTSP_Viewer.OnvifMediaServiceReference.Profile MediaProfile { get; set; }
-        public bool PtzAvailable { get; private set; } = false;
+
+        /// <summary>
+        /// Set when a Pan/Tilt/Zoom command is issued.  Reset when a Stop command is issued.
+        /// </summary>
+        public bool PtzMoving { get; private set; } = false;
         private PTZPreset[] Presets;
 
         private static readonly ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
@@ -74,10 +76,10 @@ namespace SDS.Video.Onvif
         }
 
         /// <summary>
-        /// Pan the camera (uses the first media profile that is PTZ capable)
+        /// Pan the camera (uses the media profile provided to the constructor)
         /// </summary>
         /// <param name="speed">Percent of max speed to move the camera (-1.00 to 1.00)</param>
-        public void Pan(float speed)
+        private void Pan(float speed)
         {
             RTSP_Viewer.OnvifMediaServiceReference.Profile mediaProfile = GetMediaProfile();
             PTZConfigurationOptions ptzConfigurationOptions = PtzClient.GetConfigurationOptions(mediaProfile.PTZConfiguration.token);
@@ -86,13 +88,14 @@ namespace SDS.Video.Onvif
             velocity.PanTilt = new Vector2D() { x = speed * ptzConfigurationOptions.Spaces.ContinuousPanTiltVelocitySpace[0].XRange.Max, y = 0 };
 
             PtzClient.ContinuousMove(mediaProfile.token, velocity, null);
+            PtzMoving = true;
         }
 
         /// <summary>
-        /// Tilt the camera (uses the first media profile that is PTZ capable)
+        /// Tilt the camera (uses the media profile provided to the constructor)
         /// </summary>
         /// <param name="speed">Percent of max speed to move the camera (-1.00 to 1.00)</param>
-        public void Tilt(float speed)
+        private void Tilt(float speed)
         {
             RTSP_Viewer.OnvifMediaServiceReference.Profile mediaProfile = GetMediaProfile();
             PTZConfigurationOptions ptzConfigurationOptions = PtzClient.GetConfigurationOptions(mediaProfile.PTZConfiguration.token);
@@ -101,10 +104,11 @@ namespace SDS.Video.Onvif
             velocity.PanTilt = new Vector2D() { x = 0, y = speed * ptzConfigurationOptions.Spaces.ContinuousPanTiltVelocitySpace[0].YRange.Max };
 
             PtzClient.ContinuousMove(mediaProfile.token, velocity, null);
+            PtzMoving = true;
         }
 
         /// <summary>
-        /// Zoom the camera (uses the first media profile that is PTZ capable)
+        /// Zoom the camera (uses the media profile provided to the constructor)
         /// </summary>
         /// <param name="speed">Percent of max speed to move the camera (-100 to 100). Negative zooms out, Positive zooms in</param>
         public void Zoom(int speed)
@@ -124,11 +128,19 @@ namespace SDS.Video.Onvif
             velocity.Zoom = new Vector1D() { x = ((float)speed / 100) * ptzConfigurationOptions.Spaces.ContinuousZoomVelocitySpace[0].XRange.Max };
 
             string timeout = null;  //"PT5S";
-            PtzClient.ContinuousMove(mediaProfile.token, velocity, timeout);
+            try
+            {
+                PtzClient.ContinuousMove(mediaProfile.token, velocity, timeout);
+                PtzMoving = true;
+            }
+            catch (Exception ex)
+            {
+                log.Error(string.Format("Exception executing Zoom command. {0}", ex.Message));
+            }
         }
 
         /// <summary>
-        /// Combined Pan and Tilt of the camera (uses the first media profile that is PTZ capable)
+        /// Combined Pan and Tilt of the camera (uses the media profile provided to the constructor)
         /// </summary>
         /// <param name="panSpeed">Percent of max speed to move the camera (-1.00 to 1.00)</param>
         /// <param name="tiltSpeed">Percent of max speed to move the camera (-1.00 to 1.00)</param>
@@ -144,21 +156,39 @@ namespace SDS.Video.Onvif
                 y = tiltSpeed * ptzConfigurationOptions.Spaces.ContinuousPanTiltVelocitySpace[0].YRange.Max
             };
 
-            PtzClient.ContinuousMove(mediaProfile.token, velocity, null);
+            try
+            {
+                PtzClient.ContinuousMove(mediaProfile.token, velocity, null);
+                PtzMoving = true;
+                log.Debug("Pan/Tilt Ptz command sent");
+            }
+            catch (Exception ex)
+            {
+                log.Error(string.Format("Exception executing Pan/Tilt command. {0}", ex.Message));
+            }
         }
 
         /// <summary>
-        /// Stop the camera (uses the first media profile that is PTZ capable).
+        /// Stop the camera (uses the media profile provided to the constructor).
         /// NOTE: may not work if not issued in conjunction with a move command
         /// </summary>
         public void Stop()
         {
             RTSP_Viewer.OnvifMediaServiceReference.Profile mediaProfile = GetMediaProfile();
-            PtzClient.Stop(mediaProfile.token, true, true);
+            try
+            {
+                PtzClient.Stop(mediaProfile.token, true, true);
+                PtzMoving = false;
+                log.Debug("Ptz Stop command sent");
+            }
+            catch (Exception ex)
+            {
+                log.Error(string.Format("Exception executing Stop command. {0}", ex.Message));
+            }
         }
 
         /// <summary>
-        /// Move PTZ to provided preset number (defaults to media profile 0)
+        /// Move PTZ to provided preset number (uses the media profile provided to the constructor)
         /// </summary>
         /// <param name="presetNumber">Preset to use</param>
         public void ShowPreset(int presetNumber)
@@ -182,7 +212,14 @@ namespace SDS.Video.Onvif
                 PTZSpeed velocity = new PTZSpeed();
                 velocity.PanTilt = new Vector2D() { x = (float)-0.5, y = 0 }; ;
 
-                PtzClient.GotoPreset(profileToken, presetToken, velocity);
+                try
+                {
+                    PtzClient.GotoPreset(profileToken, presetToken, velocity);
+                }
+                catch (Exception ex)
+                {
+                    log.Error(string.Format("Exception executing ShowPreset command. {0}", ex.Message));
+                }
             }
             else
             {
@@ -217,19 +254,18 @@ namespace SDS.Video.Onvif
             return status;
         }
 
-        public bool IsPtz()
-        {
-            try
-            {
-                RTSP_Viewer.OnvifMediaServiceReference.Profile mediaProfile = GetMediaProfile();
-                PtzAvailable = true;
-            }
-            catch (Exception)
-            {
-                PtzAvailable = false;
-            }
-
-            return PtzAvailable;
-        }
+        // Shouldn't be necessary anymore since the constructor requires a PTZ uri 
+        //public bool IsPtz()
+        //{
+        //    try
+        //    {
+        //        RTSP_Viewer.OnvifMediaServiceReference.Profile mediaProfile = GetMediaProfile();
+        //        return true;
+        //    }
+        //    catch (Exception)
+        //    {
+        //        return false;
+        //    }
+        //}
     }
 }

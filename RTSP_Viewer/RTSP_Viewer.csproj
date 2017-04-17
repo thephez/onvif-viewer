@@ -100,7 +100,6 @@
     <Compile Include="Classes\CallupTextFileProcessing.cs" />
     <Compile Include="Classes\Camera.cs" />
     <Compile Include="Classes\IniFile.cs" />
-    <Compile Include="Classes\MouseEvents.cs" />
     <Compile Include="Classes\OpcUaClient.cs" />
     <Compile Include="Classes\TagDatabase.cs" />
     <Compile Include="Classes\Utilities.cs" />

@@ -157,7 +157,6 @@ namespace RTSP_Viewer
                 MouseEventPanel.MouseEnter += VlcOverlay_MouseEnter;
                 MouseEventPanel.MouseLeave += VlcOverlay_MouseLeave;
                 MouseEventPanel.MouseDoubleClick += VlcOverlay_MouseDoubleClick;
-                MouseEventPanel.MouseClick += VlcOverlay_MouseClick;
                 MouseEventPanel.MouseMove += VlcOverlay_MouseMove;
                 MouseEventPanel.MouseDown += VlcOverlay_MouseDown;
                 MouseEventPanel.MouseUp += VlcOverlay_MouseUp;
@@ -418,7 +417,7 @@ namespace RTSP_Viewer
             if (cam.IsPtz && cam.IsPtzEnabled)
             {
                 vlcOverlay[ViewerNum].PtzController = new OnvifPtz(cam.OnvifData.ServiceUris[OnvifNamespace.MEDIA], cam.OnvifData.ServiceUris[OnvifNamespace.PTZ], cam.OnvifData.DeviceTimeOffset, cam.OnvifData.MediaProfile, cam.User, cam.Password);
-                                
+
                 if (Preset > 0)
                     try
                     {
@@ -439,7 +438,7 @@ namespace RTSP_Viewer
             Debug.Print(string.Format("{0} Stop PTZ if necessary ({1})", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"), overlay.Name));
 
             // Check if PTZ and enable PTZ controls if necessary
-            if (overlay.PtzEnabled && overlay.PtzController != null)
+            if (overlay.PtzEnabled && overlay.PtzController != null && overlay.PtzController.PtzMoving)
             {
                 log.Debug(string.Format("Camera stopping on view {0} [{1}]", overlay.Name, overlay.LastCamUri));
                 Debug.Print(string.Format("Camera stopping on view {0} [{1}]", overlay.Name, overlay.LastCamUri));
@@ -541,21 +540,6 @@ namespace RTSP_Viewer
             }
         }
 
-        private void VlcOverlay_MouseClick(object sender, MouseEventArgs e)
-        {
-            // Update combobox with selected view
-            Panel pan = (Panel)sender;
-            cbxViewSelect.SelectedIndex = pan.TabIndex;
-            SetViewerStatus(pan.TabIndex);
-            txtUri.Text = MyIni.Read("lastURI", "Viewer_" + pan.TabIndex);
-
-            if (e.Button == MouseButtons.Right)
-            {
-                VlcViewer.TogglePause(myVlcControl[pan.TabIndex]);
-            }
-            Debug.Print(string.Format("Mouse click ({0})", pan.Name));
-        }
-
         private void VlcOverlay_MouseDoubleClick(object sender, EventArgs e)
         {
             Panel overlay = (Panel)sender;
@@ -646,8 +630,19 @@ namespace RTSP_Viewer
         {
             Panel p = (Panel)sender;
             VlcOverlay overlay = vlcOverlay[p.TabIndex]; // (VlcOverlay)sender;
+            log.Debug(string.Format("Mouse up on view {0}", overlay.Name));
 
-            // Attempt to prevent unstopping PTZ (stop send before PTZ?)
+            // Set the viewer status
+            cbxViewSelect.SelectedIndex = p.TabIndex;
+            SetViewerStatus(p.TabIndex);
+            txtUri.Text = MyIni.Read("lastURI", "Viewer_" + p.TabIndex);
+
+            if (e.Button == MouseButtons.Right)
+            {
+                VlcViewer.TogglePause(myVlcControl[p.TabIndex]);
+            }
+
+            // Attempt to prevent unstopping PTZ (stop sent before PTZ?)
             BgPtzWorker[overlay.TabIndex].CancelAsync();
             PtzStop(overlay);
         }
@@ -706,7 +701,7 @@ namespace RTSP_Viewer
             Panel p = (Panel)sender;
             VlcOverlay overlay = vlcOverlay[p.TabIndex]; // (VlcOverlay)sender;
 
-            int minMovePercent = 2;
+            int minMovePercent = 3;
             if (overlay.LastMouseArgs == null)
                 overlay.LastMouseArgs = e;
 
@@ -767,6 +762,20 @@ namespace RTSP_Viewer
                 else
                 {
                     //log.Debug(string.Format("Background worker busy.  Ignoring mouse down for view {0} [{1}]", overlay.Name, overlay.LastCamUri));
+                }
+            }
+            else if (e.Button == MouseButtons.None)
+            {
+                // Allow some mouse movement (hard to use scroll wheel with no change in mouse position)
+                if (Math.Abs((overlay.LastMouseArgs.X - e.X)) > (overlay.Width * ((float)minMovePercent / 100)) | 
+                    (Math.Abs((overlay.LastMouseArgs.Y - e.Y)) > (overlay.Height * ((float)minMovePercent / 100))))
+                {
+                    // PtzMoving should be false if no buttons are pressed.  
+                    // This is to help prevent the Ptz from moving continuously as 
+                    // it does sometime if the mouse up is not detected or the stop is sent before the PTZ command
+                    //  Should become unecessary when a real fix for those issues is implemented
+                    if (overlay.PtzEnabled && overlay.PtzController != null && overlay.PtzController.PtzMoving)
+                        PtzStop(overlay);
                 }
             }
         }

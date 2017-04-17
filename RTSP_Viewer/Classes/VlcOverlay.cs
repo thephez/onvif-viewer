@@ -12,7 +12,6 @@ namespace SDS.Video
     public class VlcOverlay : Panel
     {
         public bool PtzEnabled { get; set; } = false;
-        public int LastCamNum { get; set; }
         public string LastCamUri { get; set; }
         public int ScrollSpeed { get; private set; } = 0;
 
