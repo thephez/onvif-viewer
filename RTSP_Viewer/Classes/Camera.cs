@@ -69,7 +69,7 @@ namespace SDS.Video
         /// as an index to an Onvif media profile as returned by the Onvif GetProfiles() command
         /// </summary>
         /// <returns></returns>
-        public string GetCameraUri(TransportProtocol tProtocol, StreamType sType)
+        public Uri GetCameraUri(TransportProtocol tProtocol, StreamType sType)
         {
             if (!OnvifData.IsOnvifLoaded)
                 OnvifData.LoadOnvifData(IP, 80, User, Password, sType, tProtocol, StreamIndex);

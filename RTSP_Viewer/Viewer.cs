@@ -364,21 +364,21 @@ namespace RTSP_Viewer
         /// </summary>
         /// <param name="URI">URI to open</param>
         /// <param name="ViewerNum">VLC control to display video on</param>
-        private void CameraCallup(string URI, int ViewerNum)
+        private void CameraCallup(Uri URI, int ViewerNum)
         {
             log.Debug(string.Format("Camera callup for view {0} [{1}]", ViewerNum, URI));
             if (ViewerNum >= 0)
             {
                 vlcOverlay[ViewerNum].ShowNotification("Loading...");
 
-                myVlcControl[ViewerNum].Play(new Uri(URI), "");
+                myVlcControl[ViewerNum].Play(URI, "");
                 myVlcControl[ViewerNum].BackColor = Color.Black;
                 Debug.Print(myVlcControl[ViewerNum].State.ToString());
                 myVlcControl[ViewerNum].UseWaitCursor = true;
 
                 // Store the URI in the ini file
-                MyIni.Write("lastURI", URI, "Viewer_" + ViewerNum);
-                vlcOverlay[ViewerNum].LastCamUri = URI;
+                MyIni.Write("lastURI", URI.AbsoluteUri, "Viewer_" + ViewerNum);
+                vlcOverlay[ViewerNum].LastCamUri = URI.AbsoluteUri;
             }
         }
 
@@ -398,7 +398,7 @@ namespace RTSP_Viewer
 
                 // Get the Onvif stream URI and callup the camera
                 cam = Camera.GetCamera(CameraNum);
-                string URI = cam.GetCameraUri(OnvifMediaServiceReference.TransportProtocol.RTSP, OnvifMediaServiceReference.StreamType.RTPUnicast);
+                Uri URI = cam.GetCameraUri(OnvifMediaServiceReference.TransportProtocol.RTSP, OnvifMediaServiceReference.StreamType.RTPUnicast);
                 CameraCallup(URI, ViewerNum);
             }
             catch (Exception ex)
@@ -490,7 +490,7 @@ namespace RTSP_Viewer
 
         private void PlayBtn_Click(object sender, EventArgs e)
         {
-            CameraCallup(this.txtUri.Text, cbxViewSelect.SelectedIndex);
+            CameraCallup(new Uri(this.txtUri.Text), cbxViewSelect.SelectedIndex);
             vlcOverlay[cbxViewSelect.SelectedIndex].EnablePtzPresets(true); // Temporary for testing
         }
 

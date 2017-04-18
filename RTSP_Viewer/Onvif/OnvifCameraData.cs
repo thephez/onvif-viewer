@@ -15,7 +15,8 @@ namespace SDS.Video.Onvif
 
         public Profile MediaProfile { get; set; }
         public Dictionary<string, string> ServiceUris { get; private set; } = new Dictionary<string, string>();
-        public string StreamUri { get; set; }
+        public Uri StreamUri { get; private set; }
+        public Uri MulticastUri { get; private set; }
         public PTZConfiguration StreamPtzConfig { get { return MediaProfile.PTZConfiguration; } }
         private System.DateTime DeviceTime { get; set; }
         public System.DateTime LastTimeCheck { get; private set; }
@@ -83,13 +84,12 @@ namespace SDS.Video.Onvif
             ss.Stream = sType;
             ss.Transport = transport;
 
-            MediaUri mu = mc.GetStreamUri(ss, MediaProfile.token);
-            if (user != "")
-                uri = string.Format("{0}{1}:{2}@{3}", mu.Uri.Substring(0, mu.Uri.IndexOf("://") + 3), user, password, mu.Uri.Substring(mu.Uri.IndexOf("://") + 3));
-            else
-                uri = mu.Uri;
-
-            StreamUri = uri;
+            Uri mu = new Uri(mc.GetStreamUri(ss, MediaProfile.token).Uri);
+            StreamUri = RTSP_Viewer.Classes.Utilities.InsertUriCredentials(mu, user, password);
+            
+            // Get multicast uri (if available) along with requested protocol/stream type
+            MulticastUri = GetMulticastUri(mc, MediaProfile);  // Not being used currently
+            MulticastUri = RTSP_Viewer.Classes.Utilities.InsertUriCredentials(MulticastUri, user, password);
 
             // A PTZ may not have a PTZ configuration for a particular media profile
             // Disable PTZ access in that case
@@ -127,6 +127,34 @@ namespace SDS.Video.Onvif
             {
                 log.Warn(string.Format("Time difference between PC and client [{0:0.0} seconds] exceeds MaxTimeOffset [{1:0.0} seconds].  ", DeviceTimeOffset, MaxTimeOffset));
             }
+        }
+
+        private Uri GetMulticastUri(MediaClient mediaClient, Profile mediaProfile)
+        {
+
+            if (mediaProfile?.VideoEncoderConfiguration?.Multicast != null && mediaProfile?.VideoEncoderConfiguration?.Multicast.Port != 0)
+            {
+                // Check for any URI supporting multicast
+                foreach (TransportProtocol protocol in Enum.GetValues(typeof(TransportProtocol)))
+                {
+                    // Get stream URI for the requested transport/protocol and insert the User/Password if present
+                    Transport transport = new Transport() { Protocol = protocol };
+                    StreamSetup ss = new StreamSetup() { Stream = StreamType.RTPMulticast };
+                    ss.Transport = transport;
+
+                    try
+                    {
+                        MediaUri mu = mediaClient.GetStreamUri(ss, MediaProfile.token);
+                        log.Debug(string.Format("Onvif media profile ({0}) capable of multicast [multicast URI: {1}]", mediaProfile.Name, mu.Uri));
+                        return new Uri(mu.Uri);
+                    }
+                    catch { } // Ignore exception and continue checking for a multicast URI
+                }
+            }
+            else
+                log.Debug(string.Format("Onvif media profile ({0}) does not support multicast", mediaProfile.Name));
+
+            return null;
         }
 
         // Example URI formats for various manufacturers (RTSP port = 554, uri = "rtsp://user:password@...")

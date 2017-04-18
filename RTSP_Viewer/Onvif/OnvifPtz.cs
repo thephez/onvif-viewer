@@ -223,8 +223,8 @@ namespace SDS.Video.Onvif
             }
             else
             {
-                log.Warn(string.Format("Preset #{0} not defined for this camera", presetNumber));
-                throw new IndexOutOfRangeException(string.Format("Preset #{0} not defined for this camera", presetNumber));
+                log.Warn(string.Format("Preset #{0} not defined for this camera [{1}]", presetNumber, PtzClient.Endpoint.Address.Uri.AbsoluteUri));
+                throw new IndexOutOfRangeException(string.Format("Preset #{0} not defined for this camera [{1}]", presetNumber, PtzClient.Endpoint.Address.Uri.AbsoluteUri));
             }
         }
 

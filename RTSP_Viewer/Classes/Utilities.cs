@@ -99,5 +99,26 @@ namespace RTSP_Viewer.Classes
                 throw new Exception(string.Format("No IP address found in provided string ({0})", ipString));
 
         }
+
+        /// <summary>
+        /// Inserts username/password into a URI after the '://' (i.e. rtsp://192.168.1.1/stream -> rtsp://user:password@192.168.1.1/stream)
+        /// Returns original URI if the user field is an empty string
+        /// </summary>
+        /// <param name="uri">URI to add credentials to</param>
+        /// <param name="user">Username</param>
+        /// <param name="password">Password</param>
+        /// <returns>Uri with login info included</returns>
+        public static Uri InsertUriCredentials(Uri uri, string user, string password)
+        {
+            if (uri != null)
+            {
+                UriBuilder u = new UriBuilder(uri);
+                u.UserName = user;
+                u.Password = password;
+                return u.Uri;
+            }
+
+            return uri;
+        }
     }
 }
