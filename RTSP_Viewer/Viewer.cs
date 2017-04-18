@@ -399,7 +399,12 @@ namespace RTSP_Viewer
                 // Get the Onvif stream URI and callup the camera
                 cam = Camera.GetCamera(CameraNum);
                 Uri URI = cam.GetCameraUri(OnvifMediaServiceReference.TransportProtocol.RTSP, OnvifMediaServiceReference.StreamType.RTPUnicast);
-                CameraCallup(URI, ViewerNum);
+
+                // Try multicast URI if available
+                if (cam.OnvifData.MulticastUri !=null)
+                    CameraCallup(cam.OnvifData.MulticastUri, ViewerNum);
+                else
+                    CameraCallup(URI, ViewerNum);
             }
             catch (Exception ex)
             {
