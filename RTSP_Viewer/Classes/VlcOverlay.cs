@@ -144,12 +144,14 @@ namespace SDS.Video
                 btnMute.BackColor = Color.Red;
                 btnMute.BackgroundImage = RTSP_Viewer.Properties.Resources.SpeakerMute;
                 ShowNotification("Audio muted", 5000);
+                log.Info(string.Format("Viewer {0} muted", this.Name));
             }
             else
             {
                 btnMute.BackColor = default(Color);
                 btnMute.BackgroundImage = RTSP_Viewer.Properties.Resources.SpeakerOn;
                 ShowNotification("Audio enabled", 5000);
+                log.Info(string.Format("Viewer {0} audio enabled", this.Name));
             }
         }
 

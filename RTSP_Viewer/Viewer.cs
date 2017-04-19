@@ -119,7 +119,7 @@ namespace RTSP_Viewer
             if (File.Exists(cameraFile) && File.Exists(cameraSchema))
             {
                 // Load camera xml file and assign default mfgr if one not provided
-                Camera.GenerateHashTable("Bosch", defaultStream, cameraFile, cameraSchema);
+                Camera.LoadAllCameraData("Bosch", defaultStream, cameraFile, cameraSchema);
             }
             else
             {

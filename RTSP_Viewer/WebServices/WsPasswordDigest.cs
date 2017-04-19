@@ -42,7 +42,7 @@ namespace SDS.WebServices.WsSecurity
 
         public void AfterReceiveReply(ref System.ServiceModel.Channels.Message reply, object correlationState)
         {
-            Debug.Print(string.Format("PasswordDigestMessageInspector AfterReceiveReply: {0}", reply.ToString()));
+            Debug.Print(string.Format("PasswordDigestMessageInspector AfterReceiveReply: {0}...", reply.ToString().Substring(0, 100)));
             //throw new NotImplementedException();
         }
 

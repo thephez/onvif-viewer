@@ -28,11 +28,12 @@ namespace SDS.Video.Onvif
 
         private static readonly ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
-        public bool LoadOnvifData(string IP, int onvifPort, string user, string password, StreamType sType, TransportProtocol tProtocol, int streamIndex)  // Probably should be private and done automatically
+        public bool LoadOnvifData(Camera cam, int onvifPort, StreamType sType, TransportProtocol tProtocol, int streamIndex)  // Probably should be private and done automatically
         {
-            GetDeviceTime(IP, onvifPort);
-            GetOnvifUris(IP, 80, user, password);
-            GetStreamUris(IP, 80, user, password, sType, tProtocol, streamIndex);
+            GetDeviceTime(cam, onvifPort);
+            GetOnvifUris(cam, onvifPort);
+            GetStreamUris(cam, onvifPort, sType, tProtocol, streamIndex);
+            // Get camera presets?
             IsOnvifLoaded = true;
 
             return true;
@@ -45,11 +46,11 @@ namespace SDS.Video.Onvif
         /// <param name="onvifPort">Port to connect on (normally HTTP - 80)</param>
         /// <param name="user">User name</param>
         /// <param name="password">User's Password</param>
-        private void GetOnvifUris(string ip, int onvifPort, string user, string password)
+        private void GetOnvifUris(Camera cam, int onvifPort)
         {
             ServiceUris.Clear();
 
-            DeviceClient client = OnvifServices.GetOnvifDeviceClient(ip, onvifPort, DeviceTimeOffset, user, password);
+            DeviceClient client = OnvifServices.GetOnvifDeviceClient(cam.IP, onvifPort, DeviceTimeOffset, cam.User, cam.Password);
             Service[] svc = client.GetServices(IncludeCapability: false); // Bosch Autodome 800 response can't be deserialized if IncludeCapability enabled
             foreach (Service s in svc)
             {
@@ -67,10 +68,10 @@ namespace SDS.Video.Onvif
         /// Retrieves Onvif video stream URIs from the device and stores them in the StreamUris list
         /// </summary>
         /// <param name="onvifPort">Port to connect on (normally HTTP - 80)</param>
-        private void GetStreamUris(string ip, int onvifPort, string user, string password, StreamType sType, TransportProtocol tProtocol, int StreamIndex)
+        private void GetStreamUris(Camera cam, int onvifPort, StreamType sType, TransportProtocol tProtocol, int StreamIndex)
         {
             //StreamUris.Clear();
-            MediaClient mc = OnvifServices.GetOnvifMediaClient(ServiceUris[OnvifNamespace.MEDIA], DeviceTimeOffset, user, password);
+            MediaClient mc = OnvifServices.GetOnvifMediaClient(ServiceUris[OnvifNamespace.MEDIA], DeviceTimeOffset, cam.User, cam.Password);
             Profile[] mediaProfiles = mc.GetProfiles();
 
             StreamSetup ss = new StreamSetup();
@@ -85,18 +86,18 @@ namespace SDS.Video.Onvif
             ss.Transport = transport;
 
             Uri mu = new Uri(mc.GetStreamUri(ss, MediaProfile.token).Uri);
-            StreamUri = RTSP_Viewer.Classes.Utilities.InsertUriCredentials(mu, user, password);
+            StreamUri = RTSP_Viewer.Classes.Utilities.InsertUriCredentials(mu, cam.User, cam.Password);
             
             // Get multicast uri (if available) along with requested protocol/stream type
-            MulticastUri = GetMulticastUri(mc, MediaProfile);  // Not being used currently
-            MulticastUri = RTSP_Viewer.Classes.Utilities.InsertUriCredentials(MulticastUri, user, password);
+            MulticastUri = GetMulticastUri(cam, mc, MediaProfile);  // Not being used currently
+            MulticastUri = RTSP_Viewer.Classes.Utilities.InsertUriCredentials(MulticastUri, cam.User, cam.Password);
 
             // A PTZ may not have a PTZ configuration for a particular media profile
             // Disable PTZ access in that case
             IsPtzEnabled = IsPtz;
             if (MediaProfile.PTZConfiguration == null && IsPtz)
             {
-                log.Warn(string.Format("Disabling PTZ control based on the PTZConfiguration being null for stream profile {0}", StreamUri));
+                log.Warn(string.Format("Camera #{0} [{1}] Disabling PTZ control based on the PTZConfiguration being null for stream profile {0}", cam.Number, cam.IP, StreamUri));
                 IsPtzEnabled = false;
             }
         }
@@ -107,9 +108,9 @@ namespace SDS.Video.Onvif
         /// </summary>
         /// <param name="ip">IP Address</param>
         /// <param name="onvifPort">Port to connect on (normally HTTP - 80)</param>
-        public void GetDeviceTime(string ip, int onvifPort)
+        public void GetDeviceTime(Camera cam, int onvifPort)
         {
-            DeviceClient client = OnvifServices.GetOnvifDeviceClient(ip, onvifPort, deviceTimeOffset: 0);
+            DeviceClient client = OnvifServices.GetOnvifDeviceClient(cam.IP, onvifPort, deviceTimeOffset: 0);
             SystemDateTime deviceTime = client.GetSystemDateAndTime();
             DeviceTime = new System.DateTime(
                 deviceTime.UTCDateTime.Date.Year,
@@ -125,11 +126,11 @@ namespace SDS.Video.Onvif
             DeviceTimeOffset = (DeviceTime - LastTimeCheck).TotalSeconds;
             if (Math.Abs(DeviceTimeOffset) > MaxTimeOffset)
             {
-                log.Warn(string.Format("Time difference between PC and client [{0:0.0} seconds] exceeds MaxTimeOffset [{1:0.0} seconds].  ", DeviceTimeOffset, MaxTimeOffset));
+                log.Warn(string.Format("Camera #{0} [{1}] Time difference between PC and client [{2:0.0} seconds] exceeds MaxTimeOffset [{3:0.0} seconds].  ", cam.Number, cam.IP, DeviceTimeOffset, MaxTimeOffset));
             }
         }
 
-        private Uri GetMulticastUri(MediaClient mediaClient, Profile mediaProfile)
+        private Uri GetMulticastUri(Camera cam, MediaClient mediaClient, Profile mediaProfile)
         {
 
             if (mediaProfile?.VideoEncoderConfiguration?.Multicast != null && mediaProfile?.VideoEncoderConfiguration?.Multicast.Port != 0)
@@ -145,14 +146,14 @@ namespace SDS.Video.Onvif
                     try
                     {
                         MediaUri mu = mediaClient.GetStreamUri(ss, MediaProfile.token);
-                        log.Debug(string.Format("Onvif media profile ({0}) capable of multicast [multicast URI: {1}]", mediaProfile.Name, mu.Uri));
+                        log.Debug(string.Format("Camera #{0} [{1}] Onvif media profile ({2}) capable of multicast [multicast URI: {3}]", cam.Number, cam.IP, mediaProfile.Name, mu.Uri));
                         return new Uri(mu.Uri);
                     }
                     catch { } // Ignore exception and continue checking for a multicast URI
                 }
             }
             else
-                log.Debug(string.Format("Onvif media profile ({0}) does not support multicast", mediaProfile.Name));
+                log.Debug(string.Format("Camera #{0} [{1}] Onvif media profile ({2}) does not support multicast", cam.Number, cam.IP, mediaProfile.Name));
 
             return null;
         }
