@@ -59,5 +59,49 @@ namespace RTSP_Viewer.Properties {
                 resourceCulture = value;
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 
+        ///
+        ///License(s):
+        ///
+        ///Vlc.DotNet.Core (https://www.nuget.org/packages/Vlc.DotNet.Core/)
+        ///Vlc.DotNet.Core.Interops (https://www.nuget.org/packages/Vlc.DotNet.Core.Interops/)
+        ///Vlc.DotNet.Forms (https://www.nuget.org/packages/Vlc.DotNet.Forms/)
+        ///Source (https://github.com/ZeBobo5/Vlc.DotNet/)
+        ///
+        ///	The MIT License (MIT)
+        ///
+        ///	Copyright (c) 2014 ZeBobo5
+        ///
+        ///	Permission is hereby granted, free of charge, to any person obtaining a copy
+        ///	of this software and associated documentation files (the &quot;Software&quot;), to deal
+        ///	in t [rest of string was truncated]&quot;;.
+        /// </summary>
+        internal static string ReadMe {
+            get {
+                return ResourceManager.GetString("ReadMe", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap SpeakerMute {
+            get {
+                object obj = ResourceManager.GetObject("SpeakerMute", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap SpeakerOn {
+            get {
+                object obj = ResourceManager.GetObject("SpeakerOn", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
     }
 }

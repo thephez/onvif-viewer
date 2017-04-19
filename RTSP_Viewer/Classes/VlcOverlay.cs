@@ -30,9 +30,13 @@ namespace SDS.Video
         public delegate void GotoPtzPresetEventHandler(object sender, PresetEventArgs e);
         public event GotoPtzPresetEventHandler GotoPtzPreset;
 
+        public delegate void ToggleMuteEventHandler(object sender, EventArgs e);
+        public event ToggleMuteEventHandler ToggleMute;
+        
         private System.Timers.Timer MsgDisplayTimer = new System.Timers.Timer();
         private System.Timers.Timer ScrollTimer = new System.Timers.Timer();
         private Button[] btnPtzPreset = new Button[5];
+        private Button btnMute = new Button();
 
         private static readonly ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -61,10 +65,31 @@ namespace SDS.Video
                 MsgDisplayTimer.Elapsed += MsgDisplayTimer_Elapsed;
             }
 
+            // Add button for muting audio
+            btnMute.Size = new Size(22, 22);
+            btnMute.Location = new Point(this.Width - 25, this.Height - 25);
+            btnMute.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            btnMute.BackgroundImage = RTSP_Viewer.Properties.Resources.SpeakerOn;
+            btnMute.BackgroundImageLayout = ImageLayout.Center;
+            btnMute.MouseEnter += Button_Enter;
+            btnMute.Click += BtnMute_Click;
+            btnMute.Visible = false;
+            Controls.Add(btnMute);
+
             ScrollTimer.Elapsed += ScrollTimer_Elapsed;
         }
 
-        private void PtzPreset_MouseEnter(object sender, System.EventArgs e)
+        private void BtnMute_Click(object sender, EventArgs e)
+        {
+            ToggleMute(this, e);
+        }
+
+        private void Button_Enter(object sender, EventArgs e)
+        {
+            this.Cursor = Cursors.Default;
+        }
+
+        private void PtzPreset_MouseEnter(object sender, EventArgs e)
         {
             this.Cursor = Cursors.Default;
         }
@@ -100,6 +125,31 @@ namespace SDS.Video
             foreach (Button b in btnPtzPreset)
             {
                 b.Invoke((Action)(() => { b.Visible = enable; }));
+            }
+        }
+
+        /// <summary>
+        /// Show / hide Mute button on screen
+        /// </summary>
+        /// <param name="visible">True to enable (display) button</param>
+        public void ShowMuteButton(bool visible)
+        {
+            btnMute.Invoke((Action)(() => { btnMute.Visible = visible; }));
+        }
+
+        public void SetMuteState(bool status)
+        {
+            if (status)
+            {
+                btnMute.BackColor = Color.Red;
+                btnMute.BackgroundImage = RTSP_Viewer.Properties.Resources.SpeakerMute;
+                ShowNotification("Audio muted", 5000);
+            }
+            else
+            {
+                btnMute.BackColor = default(Color);
+                btnMute.BackgroundImage = RTSP_Viewer.Properties.Resources.SpeakerOn;
+                ShowNotification("Audio enabled", 5000);
             }
         }
 

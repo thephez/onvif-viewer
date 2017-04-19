@@ -151,6 +151,7 @@ namespace RTSP_Viewer
                 myVlcControl[i] = new VlcControl();
                 vlcOverlay[i] = new VlcOverlay() { Name = "VLC Overlay " + i, BackColor = Color.Transparent, TabIndex = i }; //, Parent = myVlcControl[i], Dock = DockStyle.Fill, TabIndex = i };
                 vlcOverlay[i].GotoPtzPreset += Viewer_GotoPtzPreset;
+                vlcOverlay[i].ToggleMute += Viewer_ToggleMute;
 
                 // Add panel to VlcControl container to capture mouse events
                 Panel MouseEventPanel = new Panel() { Parent = myVlcControl[i], BackColor = Color.Transparent, Dock = DockStyle.Fill, TabIndex = i, };
@@ -370,6 +371,7 @@ namespace RTSP_Viewer
             if (ViewerNum >= 0)
             {
                 vlcOverlay[ViewerNum].ShowNotification("Loading...");
+                vlcOverlay[ViewerNum].ShowMuteButton(false);
 
                 myVlcControl[ViewerNum].Play(URI, "");
                 myVlcControl[ViewerNum].BackColor = Color.Black;
@@ -401,7 +403,7 @@ namespace RTSP_Viewer
                 Uri URI = cam.GetCameraUri(OnvifMediaServiceReference.TransportProtocol.RTSP, OnvifMediaServiceReference.StreamType.RTPUnicast);
 
                 // Try multicast URI if available
-                if (cam.OnvifData.MulticastUri !=null)
+                if (cam.OnvifData.MulticastUri != null)
                     CameraCallup(cam.OnvifData.MulticastUri, ViewerNum);
                 else
                     CameraCallup(URI, ViewerNum);
@@ -543,6 +545,18 @@ namespace RTSP_Viewer
                     overlay.ShowNotification(string.Format("Preset #{0} undefined", e.Preset), 3000);
                 }
             }
+        }
+
+        private void Viewer_ToggleMute(object sender, EventArgs e)
+        {
+            VlcOverlay overlay = (VlcOverlay)sender;
+            VlcControl vlc = myVlcControl[overlay.TabIndex];
+            if (vlc?.Audio != null)
+            {
+                vlc.Audio.ToggleMute();
+            }
+
+            overlay.SetMuteState(vlc.Audio.IsMute);
         }
 
         private void VlcOverlay_MouseDoubleClick(object sender, EventArgs e)
@@ -772,7 +786,7 @@ namespace RTSP_Viewer
             else if (e.Button == MouseButtons.None)
             {
                 // Allow some mouse movement (hard to use scroll wheel with no change in mouse position)
-                if (Math.Abs((overlay.LastMouseArgs.X - e.X)) > (overlay.Width * ((float)minMovePercent / 100)) | 
+                if (Math.Abs((overlay.LastMouseArgs.X - e.X)) > (overlay.Width * ((float)minMovePercent / 100)) |
                     (Math.Abs((overlay.LastMouseArgs.Y - e.Y)) > (overlay.Height * ((float)minMovePercent / 100))))
                 {
                     // PtzMoving should be false if no buttons are pressed.  
@@ -801,7 +815,7 @@ namespace RTSP_Viewer
             VlcControl vlc = (VlcControl)sender;
             vlc.UseWaitCursor = false;
 
-            vlcOverlay[int.Parse(vlc.Name.Split()[2])].HideNotification();
+            vlcOverlay[vlc.TabIndex].HideNotification();
 
             var mediaInformations = vlc.GetCurrentMedia().TracksInformations;
             foreach (var mediaInformation in mediaInformations)
@@ -809,7 +823,8 @@ namespace RTSP_Viewer
                 if (mediaInformation.Type == Vlc.DotNet.Core.Interops.Signatures.MediaTrackTypes.Audio)
                 {
                     log.Debug(string.Format("{0} Audio info - Codec: {1}, Channels: {2}, Rate: {3}", vlc.Name, mediaInformation.CodecName, mediaInformation.Audio.Channels, mediaInformation.Audio.Rate));
-                    //        //myLblAudioCodec.InvokeIfRequired(l => l.Text += mediaInformation.CodecName);
+                    vlcOverlay[vlc.TabIndex].ShowNotification("Audio stream active", 5000);
+                    vlcOverlay[vlc.TabIndex].ShowMuteButton(true);
                 }
                 else if (mediaInformation.Type == Vlc.DotNet.Core.Interops.Signatures.MediaTrackTypes.Video)
                 {
