@@ -130,7 +130,7 @@ namespace RTSP_Viewer.Classes
             foreach (var value in monitoredItem.DequeueValues())
             {
                 string message = string.Format("{0}={1}\t[Source Time: {2}, Status: {3}]", monitoredItem.DisplayName, value.Value, value.SourceTimestamp.ToString("yyyy-MM-dd HH:mm:ss.fff"), value.StatusCode);
-                log.Debug(message);
+                log.Info(message);
                 tagDB.UpdateTagValue(monitoredItem.DisplayName, value.Value.ToString());
 
                 if (monitoredItem.DisplayName.EndsWith("Trigger")) // == "Camera01Trigger")
@@ -150,7 +150,7 @@ namespace RTSP_Viewer.Classes
                             if (tagValue != null && tagValue != "")
                             {
                                 int viewerNum = int.Parse(tagRoot.Substring(tagRoot.Length - 2, 2)) - 1;
-                                callupDelegate(tagValue, viewerNum);
+                                callupDelegate(new Uri(tagValue), viewerNum);
                             }
                         }
                         else
@@ -159,6 +159,27 @@ namespace RTSP_Viewer.Classes
                             log.Warn(string.Format("Tag not found [{0}].  Callup cannot be performed.", CameraUriTag));
                         }
                     }
+                }
+                else if (monitoredItem.DisplayName.EndsWith("CameraURI"))
+                {
+                    string tagRoot = monitoredItem.DisplayName.Substring(0, monitoredItem.DisplayName.Length - "CameraURI".Length);
+
+                    // If the tag exists and has a valid value, attempt a callup
+                    if (tagDB.Tags.Exists(x => x.name == monitoredItem.DisplayName))
+                    {
+                        var tagValue = tagDB.Tags.Find(item => item.name == monitoredItem.DisplayName).value;
+                        if (tagValue != null && tagValue != "")
+                        {
+                            int viewerNum = int.Parse(tagRoot.Substring(tagRoot.Length - 2, 2)) - 1;
+                            callupDelegate(new Uri(tagValue), viewerNum);
+                        }
+                    }
+                    else
+                    {
+                        // Tag not yet assigned
+                        log.Warn(string.Format("Tag not found [{0}].  Callup cannot be performed.", monitoredItem.DisplayName));
+                    }
+
                 }
             }
         }
