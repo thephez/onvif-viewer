@@ -128,6 +128,22 @@ namespace SDS.Video
             }
         }
 
+        public void EnablePtzPresets(bool enable, int presetCount)
+        {
+            PtzEnabled = enable;
+            foreach (Button b in btnPtzPreset)
+            {
+                if (b.TabIndex <= presetCount)
+                {
+                    b.Invoke((Action)(() => { b.Visible = enable; }));
+                }
+                else
+                {
+                    b.Invoke((Action)(() => { b.Visible = false; }));
+                }
+            }
+        }
+
         /// <summary>
         /// Show / hide Mute button on screen
         /// </summary>

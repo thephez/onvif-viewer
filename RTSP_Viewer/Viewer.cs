@@ -423,8 +423,8 @@ namespace RTSP_Viewer
             // Prepare PTZ object, enable the PTZ functionality on the Overlay if available, and go to preset
             if (cam.IsPtz && cam.IsPtzEnabled)
             {
-                vlcOverlay[ViewerNum].PtzController = new OnvifPtz(cam.OnvifData.ServiceUris[OnvifNamespace.MEDIA], cam.OnvifData.ServiceUris[OnvifNamespace.PTZ], cam.OnvifData.DeviceTimeOffset, cam.OnvifData.MediaProfile, cam.User, cam.Password);
-
+                vlcOverlay[ViewerNum].PtzController = cam.PtzController;
+                
                 if (Preset > 0)
                     try
                     {
@@ -436,7 +436,7 @@ namespace RTSP_Viewer
                     }
             }
 
-            vlcOverlay[ViewerNum].EnablePtzPresets(cam.IsPtzEnabled);
+            vlcOverlay[ViewerNum].EnablePtzPresets(cam.IsPtzEnabled, cam.PtzController.GetPresetCount());
         }
 
         private void PtzStop(VlcOverlay overlay)

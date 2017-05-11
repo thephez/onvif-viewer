@@ -242,6 +242,21 @@ namespace SDS.Video.Onvif
             return false;
         }
 
+        public int GetPresetCount()
+        {
+            RTSP_Viewer.OnvifMediaServiceReference.Profile mediaProfile = GetMediaProfile();
+            string profileToken = mediaProfile.token;
+
+            // This could be used to cache presets to avoid unecessary HTTP requests
+            // This could also cause an issue when presets are modified so it is not used currently
+            //if (Presets == null)
+            //    Presets = PtzClient.GetPresets(profileToken);
+
+            Presets = PtzClient.GetPresets(profileToken);
+
+            return Presets.Length;
+        }
+
         /// <summary>
         /// Get the current Ptz location from the camera
         /// </summary>

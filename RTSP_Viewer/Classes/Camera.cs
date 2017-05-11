@@ -30,8 +30,9 @@ namespace SDS.Video
         public string Password { get; private set; }
 
         public OnvifCameraData OnvifData { get; set; } = new OnvifCameraData();
+        public OnvifPtz PtzController { get { return OnvifData.PtzController; } }
         public bool IsOnvifLoaded { get { return OnvifData.IsOnvifLoaded; } }
-
+        
         public static string DefaultManufacturer { get; set; } = "Bosch";  // Not sure we want this to be a static field
         public static int DefaultStream { get; set; } = 1;  // Not sure we want this to be a static field
         public static string DefaultCameraFile { get; set; } = "cameras.xml"; // Not sure we want this to be a static field

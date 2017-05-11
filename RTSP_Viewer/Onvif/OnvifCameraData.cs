@@ -25,6 +25,7 @@ namespace SDS.Video.Onvif
         public bool IsOnvifLoaded { get; private set; } = false;
         public bool IsPtz { get; private set; } = false;
         public bool IsPtzEnabled { get; private set; } = false;
+        public OnvifPtz PtzController { get; private set; }
 
         private static readonly ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -33,7 +34,12 @@ namespace SDS.Video.Onvif
             GetDeviceTime(cam, onvifPort);
             GetOnvifUris(cam, onvifPort);
             GetStreamUris(cam, onvifPort, sType, tProtocol, streamIndex);
-            // Get camera presets?
+            
+            if (IsPtz)
+            {
+                PtzController = new OnvifPtz(ServiceUris[OnvifNamespace.MEDIA], ServiceUris[OnvifNamespace.PTZ], DeviceTimeOffset, MediaProfile, cam.User, cam.Password);
+                // Get camera presets?
+            }
             IsOnvifLoaded = true;
 
             return true;
@@ -87,7 +93,7 @@ namespace SDS.Video.Onvif
 
             Uri mu = new Uri(mc.GetStreamUri(ss, MediaProfile.token).Uri);
             StreamUri = RTSP_Viewer.Classes.Utilities.InsertUriCredentials(mu, cam.User, cam.Password);
-            
+
             // Get multicast uri (if available) along with requested protocol/stream type
             MulticastUri = GetMulticastUri(cam, mc, MediaProfile);  // Not being used currently
             MulticastUri = RTSP_Viewer.Classes.Utilities.InsertUriCredentials(MulticastUri, cam.User, cam.Password);
