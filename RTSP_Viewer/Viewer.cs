@@ -11,7 +11,6 @@ using log4net;
 using System.Text.RegularExpressions;
 using System.IO;
 using System.ComponentModel;
-using SDS.Video.Onvif;
 
 namespace RTSP_Viewer
 {

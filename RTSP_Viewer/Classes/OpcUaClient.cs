@@ -11,7 +11,7 @@ namespace RTSP_Viewer.Classes
         private static readonly ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         static UaClient opcuaClient = new UaClient();
-        public delegate void SetCameraCallup(string URI, int ViewerNum);
+        public delegate void SetCameraCallup(Uri URI, int ViewerNum);
         private SetCameraCallup callupDelegate;
         private Thread opcThread;
 
