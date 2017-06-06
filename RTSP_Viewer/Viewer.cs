@@ -30,7 +30,7 @@ namespace RTSP_Viewer
         Panel statusBg = new Panel();
         private int ActiveViewer = 0;
 
-        OpcUaClient tagClient;
+        //OpcUaClient tagClient;
         IniFile MyIni;
         TextBox txtUri = new TextBox() { Tag = "Debug", Visible = false };
         ComboBox cbxViewSelect = new ComboBox() { Tag = "Debug", Visible = false };
@@ -84,7 +84,7 @@ namespace RTSP_Viewer
             VlcViewer.DisconnectAll(myVlcControl);
 
             // Call disconnect (if tagClient is not null)
-            tagClient?.Disconnect();
+            //tagClient?.Disconnect();
             Cursor.Current = Cursors.Default;
 
             log.Info("Application Form closing");
@@ -305,7 +305,7 @@ namespace RTSP_Viewer
             if (opcEnable > 0)
             {
                 // Instantiate OPC client and provide delegate function to handle callups
-                tagClient = new OpcUaClient(CameraCallup);
+                //tagClient = new OpcUaClient(CameraCallup);
 
                 // OPC server and path to subscribe to
                 string endPointURL = getIniValue("OPC_Endpoint_URL");
@@ -313,7 +313,7 @@ namespace RTSP_Viewer
 
                 // Establish Opc connection/subscription on own thread
                 log.Info("Initializing OPC connection");
-                tagClient.StartInterface(endPointURL, tagPath);
+                //tagClient.StartInterface(endPointURL, tagPath);
             }
             else
             {
